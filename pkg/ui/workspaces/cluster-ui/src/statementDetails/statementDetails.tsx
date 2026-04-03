@@ -378,7 +378,7 @@ export function StatementDetails(
   const backToStatementsClick = (): void => {
     const params = new URLSearchParams(history.location.search);
     if (params.get("from") === "pinned-plans") {
-      history.push("/sql-activity?tab=Pinned+Plans");
+      history.push("/sql-activity?tab=Pinned+plans");
     } else {
       history.push("/sql-activity?tab=Statements&view=fingerprints");
     }
@@ -1319,7 +1319,7 @@ export function StatementDetails(
           className="small-margin"
           style={{ marginLeft: 0, paddingLeft: 0 }}
         >
-          {new URLSearchParams(history.location.search).get("from") === "pinned-plans" ? "Pinned Plans" : "Statements"}
+          {new URLSearchParams(history.location.search).get("from") === "pinned-plans" ? "Pinned plans" : "Statements"}
         </Button>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <h3 className={commonStyles("base-heading", "no-margin-bottom")} style={{ margin: 0, padding: 0 }}>

@@ -71,10 +71,10 @@ const mockPinnedPlans = [
     pinnedBy: "root",
     pinnedAt: new Date("2026-03-27T14:30:00"),
     status: "active" as const,
-    executions: 1847,
-    overridden: 221,
+    executions: 507,
+    overridden: 61,
     avgLatency: 0.0029,
-    lastExecTime: new Date("2026-03-27T20:04:00"),
+    lastExecTime: new Date("2026-04-03T13:04:00"),
   },
   {
     statementFingerprint:
@@ -85,10 +85,10 @@ const mockPinnedPlans = [
     pinnedBy: "dba_admin",
     pinnedAt: new Date("2026-03-26T09:15:00"),
     status: "active" as const,
-    executions: 932,
-    overridden: 45,
+    executions: 120,
+    overridden: 8,
     avgLatency: 0.0026,
-    lastExecTime: new Date("2026-03-27T20:04:00"),
+    lastExecTime: new Date("2026-04-03T13:04:00"),
   },
   {
     statementFingerprint:
@@ -114,10 +114,10 @@ const mockPinnedPlans = [
     pinnedBy: "sre_oncall",
     pinnedAt: new Date("2026-03-24T08:45:00"),
     status: "active" as const,
-    executions: 12453,
-    overridden: 1867,
+    executions: 12378,
+    overridden: 1856,
     avgLatency: 0.0008,
-    lastExecTime: new Date("2026-03-27T20:05:00"),
+    lastExecTime: new Date("2026-04-03T13:05:00"),
   },
   {
     statementFingerprint:
@@ -128,10 +128,10 @@ const mockPinnedPlans = [
     pinnedBy: "root",
     pinnedAt: new Date("2026-03-20T15:20:00"),
     status: "active" as const,
-    executions: 34,
+    executions: 116,
     overridden: 0,
     avgLatency: 0.0041,
-    lastExecTime: new Date("2026-03-22T10:00:00"),
+    lastExecTime: new Date("2026-04-03T13:04:00"),
   },
 ];
 
@@ -145,6 +145,8 @@ const mockDriftAlerts = [
     lastWouldHaveExecuted: new Date("2026-03-27T19:58:00"),
     assessment: "potential-improvement" as const,
     latencyDelta: -0.0004,
+    pinnedLatency: 0.0029,
+    candidateLatency: 0.0025,
   },
   {
     fingerprintID: "7442192024002430332",
@@ -155,6 +157,20 @@ const mockDriftAlerts = [
     lastWouldHaveExecuted: new Date("2026-03-27T20:02:00"),
     assessment: "regression-risk" as const,
     latencyDelta: 0.0012,
+    pinnedLatency: 0.0008,
+    candidateLatency: 0.002,
+  },
+  {
+    fingerprintID: "7562955041576980258",
+    statement:
+      "SELECT count(*) FROM user_promo_codes WHERE ((city = $1) AND (user_id = $2)) AND (code = $3)",
+    candidateGist: "AgHeAQIABwIAAAUADAYD",
+    wouldHaveExecuted: 18,
+    lastWouldHaveExecuted: new Date("2026-03-27T18:30:00"),
+    assessment: "stats-schema-issue" as const,
+    latencyDelta: 0.0031,
+    pinnedLatency: 0.0026,
+    candidateLatency: 0.0057,
   },
 ];
 
@@ -324,24 +340,31 @@ export function PinnedPlansPage(): React.ReactElement {
   const totalOverridden = mockPinnedPlans.reduce((s, p) => s + p.overridden, 0);
   const uniqueStatements = new Set(mockPinnedPlans.map((p) => p.fingerprintID)).size;
 
-  const tabBtnStyle = (tab: TabType) => ({
-    padding: "8px 16px",
+  const tabKeys: TabType[] = ["overview", "drift", "audit"];
+  const tabBtnStyle = (tab: TabType): React.CSSProperties => ({
+    padding: tab === tabKeys[0] ? "12px 16px 0 0" : "12px 16px 0 16px",
     fontSize: "14px",
-    fontWeight: activeTab === tab ? 600 : 400,
-    color: activeTab === tab ? "#0055ff" : "#394455",
+    fontWeight: 400,
+    color: activeTab === tab ? "#0055ff" : "#475872",
     backgroundColor: "transparent",
     border: "none",
-    borderBottomWidth: "2px",
-    borderBottomStyle: "solid" as const,
-    borderBottomColor: activeTab === tab ? "#0055ff" : "transparent",
     cursor: "pointer",
-    marginRight: "4px",
+    marginRight: "0px",
+    marginBottom: "-1px",
     fontFamily,
+    letterSpacing: "normal",
+    lineHeight: "22px",
   });
 
   return (
     <div style={{ paddingRight: "24px" }}>
       <Helmet title="Pinned Plans" />
+      <style>{`
+        .pp-link { color: #394455; text-decoration: none; }
+        .pp-link:hover { color: #0055ff; text-decoration: underline; }
+        .pp-link-mono { font-family: RobotoMono-Medium, Roboto Mono, monospace; font-size: 12px; color: #242A35; white-space: nowrap; text-decoration: none; display: block; max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
+        .pp-link-mono:hover { color: #0055ff; text-decoration: underline; }
+      `}</style>
 
       {/* Summary Metrics */}
       <div
@@ -354,10 +377,10 @@ export function PinnedPlansPage(): React.ReactElement {
         }}
       >
         {[
-          { label: "Total Pins", value: totalPinned, color: "#394455" },
+          { label: "Total pins", value: totalPinned, color: "#394455" },
           { label: "Active", value: activePins, color: "#237300" },
           { label: "Invalid", value: invalidPins, color: invalidPins > 0 ? "#cd2939" : "#394455" },
-          { label: "Pinned Executions", value: totalExecutions.toLocaleString(), color: "#394455" },
+          { label: "Pinned executions", value: totalExecutions.toLocaleString(), color: "#394455" },
         ].map((m, i) => (
           <div key={i} style={{ padding: "12px 16px", border: "1px solid #e7ecf3", borderRadius: "4px", backgroundColor: "white" }}>
             <div style={{ fontSize: "12px", color: "#475872", marginBottom: "4px", fontFamily }}>{m.label}</div>
@@ -365,7 +388,7 @@ export function PinnedPlansPage(): React.ReactElement {
           </div>
         ))}
         <div style={{ padding: "12px 16px", border: "1px solid #e7ecf3", borderRadius: "4px", backgroundColor: "white" }}>
-          <div style={{ fontSize: "12px", color: "#475872", marginBottom: "4px", fontFamily }}>Optimizer Overridden</div>
+          <div style={{ fontSize: "12px", color: "#475872", marginBottom: "4px", fontFamily }}>Optimizer overridden</div>
           <div style={{ fontSize: "20px", fontWeight: 600, color: "#394455", fontFamily }}>{totalOverridden.toLocaleString()}</div>
           <div style={{ fontSize: "12px", color: "#475872", marginTop: "2px", fontFamily }}>across {uniqueStatements} statements</div>
         </div>
@@ -373,40 +396,46 @@ export function PinnedPlansPage(): React.ReactElement {
 
       {/* Tabs */}
       <div style={{ borderBottom: "1px solid #d6dbe7", marginBottom: "16px", display: "flex" }}>
-        <button style={tabBtnStyle("overview")} onClick={() => setActiveTab("overview")}>
-          All Pinned Plans
-        </button>
-        <button style={tabBtnStyle("drift")} onClick={() => setActiveTab("drift")}>
-          Drift Analysis
-          {mockDriftAlerts.length > 0 && (
-            <span style={{ marginLeft: "6px", padding: "1px 6px", borderRadius: "8px", fontSize: "11px", fontWeight: 600, backgroundColor: "#fff4e1", color: "#b26000" }}>
-              {mockDriftAlerts.length}
+        {([
+          { key: "overview" as TabType, label: "All pinned plans" },
+          { key: "drift" as TabType, label: "Drift analysis", badge: mockDriftAlerts.length > 0 ? mockDriftAlerts.length : undefined },
+          { key: "audit" as TabType, label: "Audit log" },
+        ]).map(tab => (
+          <button key={tab.key} style={tabBtnStyle(tab.key)} onClick={() => setActiveTab(tab.key)}>
+            <span style={{
+              display: "inline-block",
+              paddingBottom: "12px",
+              borderBottom: activeTab === tab.key ? "2px solid #0055ff" : "2px solid transparent",
+            }}>
+              {tab.label}
+              {tab.badge != null && (
+                <span style={{ marginLeft: "6px", padding: "1px 6px", borderRadius: "8px", fontSize: "11px", fontWeight: 600, backgroundColor: "#fff4e1", color: "#b26000" }}>
+                  {tab.badge}
+                </span>
+              )}
             </span>
-          )}
-        </button>
-        <button style={tabBtnStyle("audit")} onClick={() => setActiveTab("audit")}>
-          Audit Log
-        </button>
+          </button>
+        ))}
       </div>
 
       {/* === All Pinned Plans === */}
       {activeTab === "overview" && (
-        <div>
+        <div style={{ overflowX: "auto" }}>
         <div style={{ fontSize: "14px", color: "#475872", marginBottom: "12px", fontFamily }}>
-          1-{mockPinnedPlans.length} of {mockPinnedPlans.length} Pinned Plans
+          1-{mockPinnedPlans.length} of {mockPinnedPlans.length} pinned plans
         </div>
         <table style={tableStyle}>
           <thead>
             <tr>
-              <SortableHeader label="Statement" column="statement" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ paddingLeft: "24px" }} />
-              <SortableHeader label="Plan Gist" column="gist" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
+              <SortableHeader label="Plan gist" column="gist" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ paddingLeft: "24px" }} />
+              <SortableHeader label="Statement" column="statement" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
               <SortableHeader label="Status" column="status" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
-              <SortableHeader label="Pinned By" column="pinnedBy" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
-              <SortableHeader label="Pinned At" column="pinnedAt" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
+              <SortableHeader label="Pinned by" column="pinnedBy" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
+              <SortableHeader label="Pinned at" column="pinnedAt" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
               <SortableHeader label="Executions" column="executions" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
               <SortableHeader label="Overridden" column="overridden" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
-              <SortableHeader label="Avg Latency" column="avgLatency" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
-              <SortableHeader label="Last Executed" column="lastExecTime" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
+              <SortableHeader label="Avg latency" column="avgLatency" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
+              <SortableHeader label="Last executed" column="lastExecTime" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
             </tr>
           </thead>
           <tbody>
@@ -423,13 +452,13 @@ export function PinnedPlansPage(): React.ReactElement {
             }).map((plan, i) => (
               <tr key={i} style={rowStyle}>
                 <td style={{ ...tdFirstStyle, }}>
-                  <Link to={`/statement/${encodeURIComponent(plan.fingerprintID)}?from=pinned-plans`} style={{ fontFamily: "RobotoMono-Medium, Roboto Mono, monospace", fontSize: "12px", color: "#242A35", whiteSpace: "nowrap", textDecoration: "none", display: "block", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {plan.statementFingerprint}
+                  <Link to={`/statement/${encodeURIComponent(plan.fingerprintID)}?tab=explain-plan&gist=${encodeURIComponent(plan.gist)}&from=pinned-plans`} className="pp-link">
+                    {plan.gist.length > 24 ? plan.gist.slice(0, 24) + "..." : plan.gist}
                   </Link>
                 </td>
                 <td style={tdStyle}>
-                  <Link to={`/statement/${encodeURIComponent(plan.fingerprintID)}?tab=explain-plan&gist=${encodeURIComponent(plan.gist)}&from=pinned-plans`} style={{ color: "#394455", textDecoration: "none" }}>
-                    {plan.gist.length > 24 ? plan.gist.slice(0, 24) + "..." : plan.gist}
+                  <Link to={`/statement/${encodeURIComponent(plan.fingerprintID)}?from=pinned-plans`} className="pp-link-mono">
+                    {plan.statementFingerprint}
                   </Link>
                 </td>
                 <td style={tdStyle}>
@@ -457,19 +486,21 @@ export function PinnedPlansPage(): React.ReactElement {
 
       {/* === Drift Analysis === */}
       {activeTab === "drift" && (
-        <div>
-          <p style={{ fontSize: "14px", color: "#475872", margin: "0 0 12px 24px", lineHeight: "22px", fontFamily }}>
-            1-{mockDriftAlerts.length} of {mockDriftAlerts.length} Drift Alerts
+        <div style={{ overflowX: "auto" }}>
+          <p style={{ fontSize: "14px", color: "#475872", margin: "0 0 12px 0", lineHeight: "22px", fontFamily }}>
+            1-{mockDriftAlerts.length} of {mockDriftAlerts.length} drift alerts
           </p>
           <table style={tableStyle}>
             <thead>
               <tr>
-                <SortableHeader label="Statement" column="statement" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ paddingLeft: "24px" }} />
-                <SortableHeader label="Candidate Gist" column="candidateGist" sortConfig={driftSort} onSort={handleSort(setDriftSort)} />
-                <SortableHeader label="Would-Have-Executed" column="wouldHaveExecuted" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
-                <SortableHeader label="Latency Delta" column="latencyDelta" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
-                <SortableHeader label="Last Would-Have-Executed" column="lastWouldHaveExecuted" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
+                <SortableHeader label="Candidate gist" column="candidateGist" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ paddingLeft: "24px" }} />
+                <SortableHeader label="Statement" column="statement" sortConfig={driftSort} onSort={handleSort(setDriftSort)} />
                 <SortableHeader label="Assessment" column="assessment" sortConfig={driftSort} onSort={handleSort(setDriftSort)} />
+                <SortableHeader label="Pinned latency" column="pinnedLatency" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
+                <SortableHeader label="Candidate latency" column="candidateLatency" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
+                <SortableHeader label="Latency delta" column="latencyDelta" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
+                <SortableHeader label="Would-have-executed" column="wouldHaveExecuted" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
+                <SortableHeader label="Last would-have-executed" column="lastWouldHaveExecuted" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
                 <th style={{ ...thStyle, textAlign: "center" }}>Action</th>
               </tr>
             </thead>
@@ -478,50 +509,68 @@ export function PinnedPlansPage(): React.ReactElement {
                 statement: d => d.statement,
                 candidateGist: d => d.candidateGist,
                 wouldHaveExecuted: d => d.wouldHaveExecuted,
+                pinnedLatency: d => d.pinnedLatency,
+                candidateLatency: d => d.candidateLatency,
                 latencyDelta: d => d.latencyDelta,
                 lastWouldHaveExecuted: d => d.lastWouldHaveExecuted.getTime(),
                 assessment: d => d.assessment,
               }).map((drift, i) => (
                 <tr key={i} style={rowStyle}>
                   <td style={{ ...tdFirstStyle, }}>
-                    <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?from=pinned-plans`} style={{ fontFamily: "RobotoMono-Medium, Roboto Mono, monospace", fontSize: "12px", color: "#242A35", whiteSpace: "nowrap", textDecoration: "none", display: "block", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&gist=${encodeURIComponent(drift.candidateGist)}&from=pinned-plans`} className="pp-link">
+                      {drift.candidateGist.length > 24 ? drift.candidateGist.slice(0, 24) + "..." : drift.candidateGist}
+                    </Link>
+                  </td>
+                  <td style={tdStyle}>
+                    <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?from=pinned-plans`} className="pp-link-mono">
                       {drift.statement}
                     </Link>
                   </td>
                   <td style={tdStyle}>
-                    <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&gist=${encodeURIComponent(drift.candidateGist)}&from=pinned-plans`} style={{ color: "#394455", textDecoration: "none" }}>
-                      {drift.candidateGist.length > 24 ? drift.candidateGist.slice(0, 24) + "..." : drift.candidateGist}
-                    </Link>
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: "right" }}>{drift.wouldHaveExecuted.toLocaleString()}</td>
-                  <td style={{ ...tdStyle, textAlign: "right", color: drift.latencyDelta < 0 ? "#237300" : "#cd2939", fontWeight: 600 }}>
-                    {drift.latencyDelta < 0 ? "" : "+"}{formatDuration(Math.abs(drift.latencyDelta))}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: "right" }}>
-                    {drift.lastWouldHaveExecuted.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
-                    {drift.lastWouldHaveExecuted.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-                  </td>
-                  <td style={tdStyle}>
                     <span
                       style={{
+                        display: "inline-flex",
+                        alignItems: "center",
                         padding: "2px 8px",
                         borderRadius: "3px",
                         fontSize: "12px",
                         fontWeight: 600,
                         lineHeight: "20px",
-                        backgroundColor: drift.assessment === "potential-improvement" ? "#e3f5e0" : "#ffe9eb",
-                        color: drift.assessment === "potential-improvement" ? "#237300" : "#cd2939",
+                        whiteSpace: "nowrap",
+                        backgroundColor: drift.assessment === "potential-improvement" ? "#e3f5e0"
+                          : drift.assessment === "stats-schema-issue" ? "#fff4e1"
+                          : "#ffe9eb",
+                        color: drift.assessment === "potential-improvement" ? "#237300"
+                          : drift.assessment === "stats-schema-issue" ? "#b26000"
+                          : "#cd2939",
                       }}
                     >
-                      {drift.assessment === "potential-improvement" ? "Potential Improvement" : "Regression Risk"}
+                      {drift.assessment === "potential-improvement" ? "Potential improvement"
+                        : drift.assessment === "stats-schema-issue" ? "Stats/schema issue"
+                        : "Regression risk"}
                     </span>
                   </td>
+                  <td style={{ ...tdStyle, textAlign: "right" }}>{formatDuration(drift.pinnedLatency)}</td>
+                  <td style={{ ...tdStyle, textAlign: "right" }}>{formatDuration(drift.candidateLatency)}</td>
+                  <td style={{ ...tdStyle, textAlign: "right", color: drift.latencyDelta < 0 ? "#237300" : "#cd2939", fontWeight: 600 }}>
+                    {drift.latencyDelta < 0 ? "" : "+"}{formatDuration(Math.abs(drift.latencyDelta))}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: "right" }}>{drift.wouldHaveExecuted.toLocaleString()}</td>
+                  <td style={{ ...tdStyle, textAlign: "right" }}>
+                    {drift.lastWouldHaveExecuted.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
+                    {drift.lastWouldHaveExecuted.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                  </td>
                   <td style={{ ...tdStyle, textAlign: "center" }}>
-                    {drift.assessment === "potential-improvement" && (
-                      <button style={{ padding: "4px 10px", fontSize: "12px", fontWeight: 500, border: "1px solid #c0c6d9", borderRadius: "4px", backgroundColor: "white", color: "#394455", cursor: "pointer", fontFamily }}>
-                        Test Plan
+                    <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
+                      <button style={{ padding: "4px 8px", fontSize: "12px", fontWeight: 600, border: "1px solid #c0c6d9", borderRadius: "4px", backgroundColor: "white", color: "#394455", cursor: "pointer", fontFamily, whiteSpace: "nowrap", lineHeight: "20px" }}>
+                        Test plan
                       </button>
-                    )}
+                      {drift.assessment === "potential-improvement" && (
+                        <button style={{ padding: "4px 8px", fontSize: "12px", fontWeight: 600, border: "1px solid #0055ff", borderRadius: "4px", backgroundColor: "#0055ff", color: "white", cursor: "pointer", fontFamily, whiteSpace: "nowrap", lineHeight: "20px" }}>
+                          Pin plan
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -532,16 +581,16 @@ export function PinnedPlansPage(): React.ReactElement {
 
       {/* === Audit Log === */}
       {activeTab === "audit" && (
-        <div>
-          <p style={{ fontSize: "14px", color: "#475872", margin: "0 0 12px 24px", lineHeight: "22px", fontFamily }}>
-            1-{mockAuditLog.length} of {mockAuditLog.length} Audit Log Entries
+        <div style={{ overflowX: "auto" }}>
+          <p style={{ fontSize: "14px", color: "#475872", margin: "0 0 12px 0", lineHeight: "22px", fontFamily }}>
+            1-{mockAuditLog.length} of {mockAuditLog.length} audit log entries
           </p>
           <table style={tableStyle}>
             <thead>
               <tr>
                 <SortableHeader label="Action" column="action" sortConfig={auditSort} onSort={handleSort(setAuditSort)} style={{ paddingLeft: "24px" }} />
+                <SortableHeader label="Plan gist" column="gist" sortConfig={auditSort} onSort={handleSort(setAuditSort)} />
                 <SortableHeader label="Statement" column="statement" sortConfig={auditSort} onSort={handleSort(setAuditSort)} />
-                <SortableHeader label="Plan Gist" column="gist" sortConfig={auditSort} onSort={handleSort(setAuditSort)} />
                 <SortableHeader label="User" column="user" sortConfig={auditSort} onSort={handleSort(setAuditSort)} />
                 <SortableHeader label="Timestamp" column="timestamp" sortConfig={auditSort} onSort={handleSort(setAuditSort)} />
               </tr>
@@ -564,16 +613,20 @@ export function PinnedPlansPage(): React.ReactElement {
                         fontSize: "12px",
                         fontWeight: 600,
                         lineHeight: "20px",
-                        backgroundColor: entry.action === "Pinned" ? "#e1ecff" : "#ffe9eb",
-                        color: entry.action === "Pinned" ? "#0037a5" : "#cd2939",
+                        backgroundColor: entry.action === "Pinned" ? "#e1ecff" : "#f0f2f5",
+                        color: entry.action === "Pinned" ? "#0037a5" : "#475872",
                       }}
                     >
                       {entry.action}
                     </span>
                   </td>
-                  <td style={tdStyle}>{entry.statement}</td>
                   <td style={tdStyle}>
                     {entry.gist.length > 24 ? entry.gist.slice(0, 24) + "..." : entry.gist}
+                  </td>
+                  <td style={tdStyle}>
+                    <span style={{ fontFamily: "RobotoMono-Medium, Roboto Mono, monospace", fontSize: "12px", color: "#242A35", whiteSpace: "nowrap", display: "block", maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {entry.statement}
+                    </span>
                   </td>
                   <td style={tdStyle}>{entry.user}</td>
                   <td style={tdStyle}>

@@ -277,7 +277,7 @@ function ExplainPlan({
                 padding: "2px 8px",
                 borderRadius: "3px",
                 fontSize: "12px",
-                fontWeight: 600,
+                fontWeight: 400,
                 lineHeight: "20px",
                 whiteSpace: "nowrap",
                 backgroundColor: isInvalidPin ? "#ffe9eb" : "#e1ecff",
@@ -451,11 +451,11 @@ function PlanPinningControls({
 
   // Mock data aligned with pinnedPlansPage.tsx
   const MOCK_PINNED_DATA: Record<string, { executions: number; overridden: number; status: string }> = {
-    "5193222733586324267": { executions: 1847, overridden: 221, status: "active" },
-    "7562955041576980258": { executions: 932, overridden: 45, status: "active" },
+    "5193222733586324267": { executions: 507, overridden: 61, status: "active" },
+    "7562955041576980258": { executions: 120, overridden: 8, status: "active" },
     "3350546850174482743": { executions: 0, overridden: 0, status: "invalid" },
-    "7442192024002430332": { executions: 12453, overridden: 1867, status: "active" },
-    "3939633309730011619": { executions: 34, overridden: 0, status: "active" },
+    "7442192024002430332": { executions: 12378, overridden: 1856, status: "active" },
+    "3939633309730011619": { executions: 116, overridden: 0, status: "active" },
   };
 
   // Use real execution data from plans, with mock overridden from pinned plans page

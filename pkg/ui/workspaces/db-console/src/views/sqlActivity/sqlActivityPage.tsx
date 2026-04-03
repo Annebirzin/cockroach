@@ -6,7 +6,7 @@
 // All changes made on this file, should also be done on the equivalent
 // file on managed-service repo.
 
-import { commonStyles, util } from "@cockroachlabs/cluster-ui";
+import { commonStyles, util, PinnedPlansPage } from "@cockroachlabs/cluster-ui";
 import { Tabs } from "antd";
 import React, { useState } from "react";
 import Helmet from "react-helmet";
@@ -23,6 +23,7 @@ export enum SQLActivityTabType {
   Statements = "Statements",
   Sessions = "Sessions",
   Transactions = "Transactions",
+  PinnedPlans = "Pinned plans",
 }
 
 export const SQL_ACTIVITY_DEFAULT_TAB: SQLActivityTabType =
@@ -70,6 +71,9 @@ const SQLActivityPage = (props: RouteComponentProps) => {
         </TabPane>
         <TabPane tab="Sessions" key="Sessions">
           <SessionsPageConnected />
+        </TabPane>
+        <TabPane tab="Pinned plans" key="Pinned plans">
+          <PinnedPlansPage />
         </TabPane>
       </Tabs>
     </div>
