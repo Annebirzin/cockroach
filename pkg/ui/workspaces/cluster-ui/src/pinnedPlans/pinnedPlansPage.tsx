@@ -178,6 +178,7 @@ const mockAuditLog = [
   {
     action: "Pinned",
     gist: "AiAC2AEB",
+    fingerprintID: "5193222733586324267",
     user: "root",
     timestamp: new Date("2026-03-27T14:30:00"),
     statement: "INSERT INTO rides VALUES ($1, $2, ...)",
@@ -185,6 +186,7 @@ const mockAuditLog = [
   {
     action: "Pinned",
     gist: "AgHeAQIABwIAAAUADAYC",
+    fingerprintID: "7562955041576980258",
     user: "dba_admin",
     timestamp: new Date("2026-03-26T09:15:00"),
     statement: "SELECT count(*) FROM user_promo_codes...",
@@ -192,6 +194,7 @@ const mockAuditLog = [
   {
     action: "Pinned",
     gist: "AgHWAQQAAwIAAAYE",
+    fingerprintID: "3350546850174482743",
     user: "root",
     timestamp: new Date("2026-03-25T11:00:00"),
     statement: "SELECT city, id FROM vehicles...",
@@ -199,6 +202,7 @@ const mockAuditLog = [
   {
     action: "Unpinned",
     gist: "AgHWAQQAAwIAAAYE",
+    fingerprintID: "3350546850174482743",
     user: "root",
     timestamp: new Date("2026-03-25T10:55:00"),
     statement: "SELECT city, id FROM vehicles...",
@@ -206,6 +210,7 @@ const mockAuditLog = [
   {
     action: "Pinned",
     gist: "AgICCgUOMCLaAQAxBQQUBdgBAgQBKg==",
+    fingerprintID: "7442192024002430332",
     user: "sre_oncall",
     timestamp: new Date("2026-03-24T08:45:00"),
     statement: "UPSERT INTO vehicle_location_histories...",
@@ -213,6 +218,7 @@ const mockAuditLog = [
   {
     action: "Pinned",
     gist: "AiAC3gEB",
+    fingerprintID: "3939633309730011619",
     user: "root",
     timestamp: new Date("2026-03-20T15:20:00"),
     statement: "INSERT INTO user_promo_codes VALUES...",
@@ -323,6 +329,7 @@ export function PinnedPlansPage(): React.ReactElement {
   const [overviewSort, setOverviewSort] = useState<SortConfig | null>(null);
   const [driftSort, setDriftSort] = useState<SortConfig | null>(null);
   const [auditSort, setAuditSort] = useState<SortConfig | null>(null);
+  const [pinnedCandidates, setPinnedCandidates] = useState<Set<string>>(new Set());
 
   const handleSort = (setter: React.Dispatch<React.SetStateAction<SortConfig | null>>) => (column: string) => {
     setter(prev => {
@@ -409,7 +416,7 @@ export function PinnedPlansPage(): React.ReactElement {
             }}>
               {tab.label}
               {tab.badge != null && (
-                <span style={{ marginLeft: "6px", padding: "1px 6px", borderRadius: "8px", fontSize: "11px", fontWeight: 600, backgroundColor: "#fff4e1", color: "#b26000" }}>
+                <span style={{ marginLeft: "6px", display: "inline-flex", alignItems: "center", justifyContent: "center", width: "18px", height: "18px", borderRadius: "50%", fontSize: "11px", fontWeight: 600, backgroundColor: "#e1ecff", color: "#0037a5", border: "1px solid #0055ff" }}>
                   {tab.badge}
                 </span>
               )}
@@ -493,7 +500,8 @@ export function PinnedPlansPage(): React.ReactElement {
           <table style={tableStyle}>
             <thead>
               <tr>
-                <SortableHeader label="Candidate gist" column="candidateGist" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ paddingLeft: "24px" }} />
+                <th style={{ ...thStyle, paddingLeft: "24px" }}>Pin</th>
+                <SortableHeader label="Candidate plan gist" column="candidateGist" sortConfig={driftSort} onSort={handleSort(setDriftSort)} />
                 <SortableHeader label="Statement" column="statement" sortConfig={driftSort} onSort={handleSort(setDriftSort)} />
                 <SortableHeader label="Assessment" column="assessment" sortConfig={driftSort} onSort={handleSort(setDriftSort)} />
                 <SortableHeader label="Pinned latency" column="pinnedLatency" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
@@ -516,7 +524,43 @@ export function PinnedPlansPage(): React.ReactElement {
                 assessment: d => d.assessment,
               }).map((drift, i) => (
                 <tr key={i} style={rowStyle}>
-                  <td style={{ ...tdFirstStyle, }}>
+                  <td style={tdFirstStyle}>
+                    <button
+                      onClick={() => {
+                        setPinnedCandidates(prev => {
+                          const next = new Set(prev);
+                          if (next.has(drift.candidateGist)) {
+                            next.delete(drift.candidateGist);
+                          } else {
+                            next.add(drift.candidateGist);
+                          }
+                          return next;
+                        });
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "4px 10px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        lineHeight: "20px",
+                        border: "1px solid #c0c6d9",
+                        borderRadius: "4px",
+                        backgroundColor: "white",
+                        color: pinnedCandidates.has(drift.candidateGist) ? "#0055ff" : "#394455",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 17v5" />
+                        <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={pinnedCandidates.has(drift.candidateGist) ? "currentColor" : "none"} />
+                      </svg>
+                      {pinnedCandidates.has(drift.candidateGist) ? "Unpin" : "Pin"}
+                    </button>
+                  </td>
+                  <td style={tdStyle}>
                     <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&gist=${encodeURIComponent(drift.candidateGist)}&from=pinned-plans`} className="pp-link">
                       {drift.candidateGist.length > 24 ? drift.candidateGist.slice(0, 24) + "..." : drift.candidateGist}
                     </Link>
@@ -561,16 +605,9 @@ export function PinnedPlansPage(): React.ReactElement {
                     {drift.lastWouldHaveExecuted.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                   </td>
                   <td style={{ ...tdStyle, textAlign: "center" }}>
-                    <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
-                      <button style={{ padding: "4px 8px", fontSize: "12px", fontWeight: 600, border: "1px solid #c0c6d9", borderRadius: "4px", backgroundColor: "white", color: "#394455", cursor: "pointer", fontFamily, whiteSpace: "nowrap", lineHeight: "20px" }}>
-                        Test plan
-                      </button>
-                      {drift.assessment === "potential-improvement" && (
-                        <button style={{ padding: "4px 8px", fontSize: "12px", fontWeight: 600, border: "1px solid #0055ff", borderRadius: "4px", backgroundColor: "#0055ff", color: "white", cursor: "pointer", fontFamily, whiteSpace: "nowrap", lineHeight: "20px" }}>
-                          Pin plan
-                        </button>
-                      )}
-                    </div>
+                    <button style={{ padding: "4px 8px", fontSize: "12px", fontWeight: 600, border: "1px solid #c0c6d9", borderRadius: "4px", backgroundColor: "white", color: "#394455", cursor: "pointer", fontFamily, whiteSpace: "nowrap", lineHeight: "20px" }}>
+                      Test plan
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -621,12 +658,14 @@ export function PinnedPlansPage(): React.ReactElement {
                     </span>
                   </td>
                   <td style={tdStyle}>
-                    {entry.gist.length > 24 ? entry.gist.slice(0, 24) + "..." : entry.gist}
+                    <Link to={`/statement/${encodeURIComponent(entry.fingerprintID)}?tab=explain-plan&gist=${encodeURIComponent(entry.gist)}&from=pinned-plans`} className="pp-link">
+                      {entry.gist.length > 24 ? entry.gist.slice(0, 24) + "..." : entry.gist}
+                    </Link>
                   </td>
                   <td style={tdStyle}>
-                    <span style={{ fontFamily: "RobotoMono-Medium, Roboto Mono, monospace", fontSize: "12px", color: "#242A35", whiteSpace: "nowrap", display: "block", maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <Link to={`/statement/${encodeURIComponent(entry.fingerprintID)}?from=pinned-plans`} className="pp-link-mono">
                       {entry.statement}
-                    </span>
+                    </Link>
                   </td>
                   <td style={tdStyle}>{entry.user}</td>
                   <td style={tdStyle}>

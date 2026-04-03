@@ -291,53 +291,30 @@ function ExplainPlan({
               {isInvalidPin ? "Invalid plan pin" : "Plan pinned"}
             </span>
           )}
-          {isPinned ? (
-            <button
-              onClick={() => onUnpin?.(gist)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
-                fontSize: "13px",
-                fontWeight: 600,
-                border: "1px solid #c0c6d9",
-                borderRadius: "4px",
-                backgroundColor: "white",
-                color: "#394455",
-                cursor: "pointer",
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 17v5" />
-                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor" />
-              </svg>
-              Unpin Plan
-            </button>
-          ) : (
-            <button
-              onClick={() => onPin?.(gist)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 16px",
-                fontSize: "13px",
-                fontWeight: 600,
-                border: "1px solid #c0c6d9",
-                borderRadius: "4px",
-                backgroundColor: "white",
-                color: "#394455",
-                cursor: "pointer",
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 17v5" />
-                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
-              </svg>
-              Pin This Plan
-            </button>
-          )}
+          <button
+            onClick={() => isPinned ? onUnpin?.(gist) : onPin?.(gist)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              padding: "4px 10px",
+              fontSize: "12px",
+              fontWeight: 600,
+              lineHeight: "20px",
+              border: "1px solid #c0c6d9",
+              borderRadius: "4px",
+              backgroundColor: "white",
+              color: isPinned ? "#0055ff" : "#394455",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 17v5" />
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned ? "currentColor" : "none"} />
+            </svg>
+            {isPinned ? "Unpin" : "Pin"}
+          </button>
         </div>
       </div>
       <SqlBox value={explainPlan} size={SqlBoxSize.CUSTOM} />
@@ -446,7 +423,6 @@ function PlanPinningControls({
   pinnedGists,
   statementFingerprintID,
 }: PlanPinningControlsProps): React.ReactElement {
-  const [showAuditLog, setShowAuditLog] = useState(false);
   const [showDrift, setShowDrift] = useState(false);
 
   // Mock data aligned with pinnedPlansPage.tsx
@@ -521,23 +497,6 @@ function PlanPinningControls({
               }}
             >
               {showDrift ? "Hide" : "Show"} Drift Analysis ({driftCandidates.length})
-            </button>
-          )}
-          {auditLog.length > 0 && (
-            <button
-              onClick={() => setShowAuditLog(!showAuditLog)}
-              style={{
-                padding: "4px 10px",
-                fontSize: "12px",
-                fontWeight: 500,
-                border: "1px solid #c0c6d9",
-                borderRadius: "4px",
-                backgroundColor: "white",
-                color: "#394455",
-                cursor: "pointer",
-              }}
-            >
-              {showAuditLog ? "Hide" : "Show"} Audit Log ({auditLog.length})
             </button>
           )}
         </div>
@@ -621,67 +580,6 @@ function PlanPinningControls({
         </div>
       )}
 
-      {/* Audit Log */}
-      {showAuditLog && auditLog.length > 0 && (
-        <div
-          style={{
-            marginBottom: "16px",
-            border: "1px solid #e7ecf3",
-            borderRadius: "4px",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "8px 16px",
-              backgroundColor: "#f5f7fa",
-              borderBottom: "1px solid #e7ecf3",
-              fontSize: "13px",
-              fontWeight: 600,
-              color: "#394455",
-            }}
-          >
-            Pin Audit Log
-          </div>
-          <div style={{ maxHeight: "200px", overflowY: "auto" }}>
-            {auditLog.map((entry, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "8px 16px",
-                  borderBottom: i < auditLog.length - 1 ? "1px solid #f0f0f0" : "none",
-                  fontSize: "13px",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span
-                    style={{
-                      padding: "1px 6px",
-                      borderRadius: "3px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      backgroundColor: entry.action === "Pinned" ? "#e1ecff" : "#ffe9eb",
-                      color: entry.action === "Pinned" ? "#0037a5" : "#cd2939",
-                    }}
-                  >
-                    {entry.action}
-                  </span>
-                  <span style={{ color: "#394455", fontFamily: "monospace", fontSize: "12px" }}>
-                    {entry.gist.length > 30 ? entry.gist.slice(0, 30) + "..." : entry.gist}
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", color: "#7b8794" }}>
-                  <span>by {entry.user}</span>
-                  <span>{entry.timestamp.toLocaleString()}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

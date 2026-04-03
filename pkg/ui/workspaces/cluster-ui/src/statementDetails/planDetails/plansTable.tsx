@@ -307,42 +307,58 @@ export function makeExplainPlanColumns(
   const pinned = pinnedGists || new Set<string>();
   return [
     {
-      name: "planGist",
-      title: planDetailsTableTitles.planGist(),
+      name: "pin",
+      title: (<span style={{ whiteSpace: "nowrap" }}>Pin</span>),
       cell: (item: PlanHashStats) => {
         const gist = item.stats.plan_gists?.[0] || "";
         const isPinned = pinned.has(gist);
         return (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke={isPinned ? "#0055ff" : "#7b8794"}
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              style={{ cursor: "pointer", flexShrink: 0 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isPinned) {
-                  onUnpin?.(gist);
-                } else {
-                  onPin?.(gist);
-                }
-              }}
-            >
-              <title>{isPinned ? "Unpin this plan" : "Pin this plan"}</title>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isPinned) {
+                onUnpin?.(gist);
+              } else {
+                onPin?.(gist);
+              }
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              padding: "4px 10px",
+              fontSize: "12px",
+              fontWeight: 600,
+              lineHeight: "20px",
+              border: "1px solid #c0c6d9",
+              borderRadius: "4px",
+              backgroundColor: "white",
+              color: isPinned ? "#0055ff" : "#394455",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 17v5" />
-              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned ? "#0055ff" : "none"} />
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned ? "currentColor" : "none"} />
             </svg>
-            <Tooltip placement="bottom" content={gist}>
-              <a onClick={() => handleDetails(item)}>
-                {limitText(gist, 25)}
-              </a>
-            </Tooltip>
-          </span>
+            {isPinned ? "Unpin" : "Pin"}
+          </button>
+        );
+      },
+      alwaysShow: true,
+    },
+    {
+      name: "planGist",
+      title: planDetailsTableTitles.planGist(),
+      cell: (item: PlanHashStats) => {
+        const gist = item.stats.plan_gists?.[0] || "";
+        return (
+          <Tooltip placement="bottom" content={gist}>
+            <a onClick={() => handleDetails(item)}>
+              {limitText(gist, 25)}
+            </a>
+          </Tooltip>
         );
       },
       sort: (item: PlanHashStats) => item.stats.plan_gists[0],
