@@ -1,4 +1,0 @@
-commit_stmt ::=
-	'COMMIT' 'TRANSACTION' opt_transaction_chain
-	| 'COMMIT' 'WORK' opt_transaction_chain
-	| 'COMMIT'  opt_transaction_chain

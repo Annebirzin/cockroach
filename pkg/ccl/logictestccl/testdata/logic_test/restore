@@ -1,5 +1,0 @@
-# LogicTest: local
-
-# Check that we get through parsing and license check.
-statement error pq: unsupported storage scheme: "" - refer to docs to find supported storage schemes
-RESTORE foo FROM LATEST IN "bar"

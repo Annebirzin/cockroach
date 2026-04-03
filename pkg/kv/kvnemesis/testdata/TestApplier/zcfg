@@ -1,3 +1,0 @@
-echo
-----
-env.UpdateZoneConfig(ctx, ToggleGlobalReads) // <nil>

@@ -22,6 +22,7 @@ export * from "./highlightedText";
 export * from "./indexDetailsPage";
 export * from "./insights";
 export * from "./jobs";
+export { PinnedPlansPage } from "./pinnedPlans/pinnedPlansPage";
 export * from "./loading";
 export * from "./modal";
 export * from "./pageConfig";

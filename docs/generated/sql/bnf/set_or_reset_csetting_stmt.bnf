@@ -1,3 +1,0 @@
-set_or_reset_csetting_stmt ::=
-	reset_csetting_stmt
-	| set_csetting_stmt

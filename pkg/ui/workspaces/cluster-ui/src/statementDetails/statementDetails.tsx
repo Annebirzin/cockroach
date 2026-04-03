@@ -376,7 +376,12 @@ export function StatementDetails(
   };
 
   const backToStatementsClick = (): void => {
-    history.push("/sql-activity?tab=Statements&view=fingerprints");
+    const params = new URLSearchParams(history.location.search);
+    if (params.get("from") === "pinned-plans") {
+      history.push("/sql-activity?tab=Pinned+Plans");
+    } else {
+      history.push("/sql-activity?tab=Statements&view=fingerprints");
+    }
     if (onBackToStatementsClick) {
       onBackToStatementsClick();
     }
@@ -1117,7 +1122,6 @@ export function StatementDetails(
               />
             </Col>
           </Row>
-          <p className={summaryCardStylesCx("summary--card__divider")} />
           {planGists.length > 0 && (
             <>
               <Row gutter={24}>
@@ -1313,12 +1317,61 @@ export function StatementDetails(
           icon={<ArrowLeft fontSize={"10px"} />}
           iconPosition="left"
           className="small-margin"
+          style={{ marginLeft: 0, paddingLeft: 0 }}
         >
-          Statements
+          {new URLSearchParams(history.location.search).get("from") === "pinned-plans" ? "Pinned Plans" : "Statements"}
         </Button>
-        <h3 className={commonStyles("base-heading", "no-margin-bottom")}>
-          Statement Fingerprint
-        </h3>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <h3 className={commonStyles("base-heading", "no-margin-bottom")} style={{ margin: 0, padding: 0 }}>
+            Statement Fingerprint
+          </h3>
+          {(() => {
+            const PINNED_IDS: Record<string, { active: number; invalid: number }> = {
+              "5193222733586324267": { active: 1, invalid: 0 },
+              "7562955041576980258": { active: 1, invalid: 0 },
+              "3350546850174482743": { active: 0, invalid: 1 },
+              "7442192024002430332": { active: 1, invalid: 0 },
+              "3939633309730011619": { active: 1, invalid: 0 },
+            };
+            const pinData = PINNED_IDS[statementFingerprintID];
+            if (!pinData) return null;
+            const pinIcon = (
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 17v5" />
+                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor" />
+              </svg>
+            );
+            const badgeStyle = (isInvalid: boolean): React.CSSProperties => ({
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              padding: "2px 8px",
+              borderRadius: "3px",
+              fontSize: "12px",
+              fontWeight: 600,
+              lineHeight: "20px",
+              whiteSpace: "nowrap" as const,
+              backgroundColor: isInvalid ? "#ffe9eb" : "#e1ecff",
+              color: isInvalid ? "#cd2939" : "#0037a5",
+            });
+            return (
+              <span style={{ display: "inline-flex", gap: "6px" }}>
+                {pinData.active > 0 && (
+                  <span style={badgeStyle(false)}>
+                    {pinIcon}
+                    Plan pinned{pinData.active > 1 ? ` (${pinData.active})` : ""}
+                  </span>
+                )}
+                {pinData.invalid > 0 && (
+                  <span style={badgeStyle(true)}>
+                    {pinIcon}
+                    Invalid plan pin{pinData.invalid > 1 ? ` (${pinData.invalid})` : ""}
+                  </span>
+                )}
+              </span>
+            );
+          })()}
+        </div>
       </div>
       <section className={cx("section", "section--container")}>
         <Loading

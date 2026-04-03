@@ -1,3 +1,0 @@
-legacy_transaction_stmt ::=
-	legacy_begin_stmt
-	| legacy_end_stmt

@@ -298,20 +298,53 @@ export function formatIndexes(indexes: string[], database: string): ReactNode {
 
 export function makeExplainPlanColumns(
   handleDetails: (plan: PlanHashStats) => void,
+  pinnedGists?: Set<string>,
+  onPin?: (gist: string) => void,
+  onUnpin?: (gist: string) => void,
 ): ColumnDescriptor<PlanHashStats>[] {
   const duration = (v: number) => Duration(v * 1e9);
   const count = (v: number) => v.toFixed(1);
+  const pinned = pinnedGists || new Set<string>();
   return [
     {
       name: "planGist",
       title: planDetailsTableTitles.planGist(),
-      cell: (item: PlanHashStats) => (
-        <Tooltip placement="bottom" content={item.stats.plan_gists[0]}>
-          <a onClick={() => handleDetails(item)}>
-            {limitText(item.stats.plan_gists[0], 25)}
-          </a>
-        </Tooltip>
-      ),
+      cell: (item: PlanHashStats) => {
+        const gist = item.stats.plan_gists?.[0] || "";
+        const isPinned = pinned.has(gist);
+        return (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={isPinned ? "#0055ff" : "#7b8794"}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ cursor: "pointer", flexShrink: 0 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isPinned) {
+                  onUnpin?.(gist);
+                } else {
+                  onPin?.(gist);
+                }
+              }}
+            >
+              <title>{isPinned ? "Unpin this plan" : "Pin this plan"}</title>
+              <path d="M12 17v5" />
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned ? "#0055ff" : "none"} />
+            </svg>
+            <Tooltip placement="bottom" content={gist}>
+              <a onClick={() => handleDetails(item)}>
+                {limitText(gist, 25)}
+              </a>
+            </Tooltip>
+          </span>
+        );
+      },
       sort: (item: PlanHashStats) => item.stats.plan_gists[0],
       alwaysShow: true,
     },

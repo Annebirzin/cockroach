@@ -1,2 +1,0 @@
-alter_database_set_secondary_region_stmt ::=
-	'ALTER' 'DATABASE' database_name 'SET' secondary_region_clause

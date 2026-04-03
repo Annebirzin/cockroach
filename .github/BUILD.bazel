@@ -1,4 +1,0 @@
-exports_files([
-    "CODEOWNERS",
-    "workflows/update_releases.yaml",
-])

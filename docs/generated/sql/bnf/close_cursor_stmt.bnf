@@ -1,3 +1,0 @@
-close_cursor_stmt ::=
-	'CLOSE' 'ALL'
-	| 'CLOSE' cursor_name

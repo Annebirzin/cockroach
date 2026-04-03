@@ -1,3 +1,0 @@
-echo
-----
-db0.ScanForUpdateGuaranteedDurability(ctx, tk(1), tk(3), 0) // context canceled

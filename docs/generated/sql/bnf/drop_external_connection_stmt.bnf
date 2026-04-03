@@ -1,2 +1,0 @@
-drop_external_connection_stmt ::=
-	'DROP' 'EXTERNAL' 'CONNECTION' connection_name

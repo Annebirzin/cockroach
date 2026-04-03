@@ -1,2 +1,0 @@
-begin_transaction ::=
-	transaction_mode_list

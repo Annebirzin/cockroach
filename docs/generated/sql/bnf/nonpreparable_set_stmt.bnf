@@ -1,2 +1,0 @@
-nonpreparable_set_stmt ::=
-	set_transaction_stmt
