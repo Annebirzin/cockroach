@@ -1327,29 +1327,22 @@ export function StatementDetails(
           </h3>
           {(() => {
             const PINNED_IDS: Record<string, { active: number; invalid: number }> = {
-              "5193222733586324267": { active: 1, invalid: 0 },
-              "7562955041576980258": { active: 1, invalid: 0 },
-              "3350546850174482743": { active: 0, invalid: 1 },
-              "7442192024002430332": { active: 1, invalid: 0 },
-              "3939633309730011619": { active: 1, invalid: 0 },
+              "5193222733586324267": { active: 2, invalid: 0 },
+              "7562955041576980258": { active: 1, invalid: 1 },
+              "3350546850174482743": { active: 1, invalid: 1 },
+              "7442192024002430332": { active: 2, invalid: 0 },
+              "3939633309730011619": { active: 2, invalid: 0 },
             };
             const pinData = PINNED_IDS[statementFingerprintID];
             if (!pinData) return null;
-            const pinIcon = (
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 17v5" />
-                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor" />
-              </svg>
-            );
             const badgeStyle = (isInvalid: boolean): React.CSSProperties => ({
               display: "inline-flex",
               alignItems: "center",
-              gap: "4px",
-              padding: "2px 8px",
+              padding: "0 8px",
               borderRadius: "3px",
               fontSize: "12px",
               fontWeight: 600,
-              lineHeight: "20px",
+              height: "24px",
               whiteSpace: "nowrap" as const,
               backgroundColor: isInvalid ? "#ffe9eb" : "#e1ecff",
               color: isInvalid ? "#cd2939" : "#0037a5",
@@ -1358,14 +1351,12 @@ export function StatementDetails(
               <span style={{ display: "inline-flex", gap: "6px" }}>
                 {pinData.active > 0 && (
                   <span style={badgeStyle(false)}>
-                    {pinIcon}
-                    Plan pinned{pinData.active > 1 ? ` (${pinData.active})` : ""}
+                    Pinned{pinData.active > 1 ? ` (${pinData.active})` : ""}
                   </span>
                 )}
                 {pinData.invalid > 0 && (
                   <span style={badgeStyle(true)}>
-                    {pinIcon}
-                    Invalid plan pin{pinData.invalid > 1 ? ` (${pinData.invalid})` : ""}
+                    Invalid pin{pinData.invalid > 1 ? ` (${pinData.invalid})` : ""}
                   </span>
                 )}
               </span>

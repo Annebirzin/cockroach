@@ -299,51 +299,68 @@ export function formatIndexes(indexes: string[], database: string): ReactNode {
 export function makeExplainPlanColumns(
   handleDetails: (plan: PlanHashStats) => void,
   pinnedGists?: Set<string>,
+  invalidGists?: Set<string>,
   onPin?: (gist: string) => void,
   onUnpin?: (gist: string) => void,
 ): ColumnDescriptor<PlanHashStats>[] {
   const duration = (v: number) => Duration(v * 1e9);
   const count = (v: number) => v.toFixed(1);
   const pinned = pinnedGists || new Set<string>();
+  const invalid = invalidGists || new Set<string>();
   return [
     {
       name: "pin",
-      title: (<span style={{ whiteSpace: "nowrap" }}>Pin</span>),
+      title: (<span style={{ whiteSpace: "nowrap" }}>Plan pin status</span>),
       cell: (item: PlanHashStats) => {
         const gist = item.stats.plan_gists?.[0] || "";
         const isPinned = pinned.has(gist);
+        const isInvalid = isPinned && invalid.has(gist);
         return (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isPinned) {
-                onUnpin?.(gist);
-              } else {
-                onPin?.(gist);
-              }
-            }}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px",
-              padding: "4px 10px",
-              fontSize: "12px",
-              fontWeight: 600,
-              lineHeight: "20px",
-              border: "1px solid #c0c6d9",
-              borderRadius: "4px",
-              backgroundColor: "white",
-              color: isPinned ? "#0055ff" : "#394455",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 17v5" />
-              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned ? "currentColor" : "none"} />
-            </svg>
-            {isPinned ? "Unpin" : "Pin"}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isPinned) {
+                  onUnpin?.(gist);
+                } else {
+                  onPin?.(gist);
+                }
+              }}
+              title={isPinned ? "Unpin" : "Pin"}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "6px",
+                border: "1px solid #c0c6d9",
+                borderRadius: "4px",
+                backgroundColor: "white",
+                color: isPinned ? "#0055ff" : "#394455",
+                cursor: "pointer",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 17v5" />
+                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned ? "currentColor" : "none"} />
+              </svg>
+            </button>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "0 8px",
+                borderRadius: "3px",
+                fontSize: "12px",
+                fontWeight: 600,
+                height: "28px",
+                whiteSpace: "nowrap",
+                backgroundColor: isPinned ? (isInvalid ? "#ffe9eb" : "#e1ecff") : "#f0f2f5",
+                color: isPinned ? (isInvalid ? "#cd2939" : "#0037a5") : "#475872",
+              }}
+            >
+              {isPinned ? (isInvalid ? "Invalid pin" : "Pinned") : "Unpinned"}
+            </span>
+          </div>
         );
       },
       alwaysShow: true,

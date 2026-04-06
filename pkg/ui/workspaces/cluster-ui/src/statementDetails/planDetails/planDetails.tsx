@@ -6,6 +6,7 @@
 import { ArrowLeft } from "@cockroachlabs/icons";
 import { Col, Row } from "antd";
 import classNames from "classnames/bind";
+import Long from "long";
 import React, { useContext, useState, useCallback } from "react";
 import { Helmet } from "react-helmet";
 import { useLocation } from "react-router-dom";
@@ -41,6 +42,121 @@ import {
 
 const cx = classNames.bind(styles);
 
+// Mock plan pinning configuration per fingerprint ID.
+// Each entry defines which gists are pinned and which are invalid.
+const MOCK_PIN_CONFIG: Record<string, {
+  // Extra mock gists to add (beyond the real one from the API)
+  extraGists: string[];
+  // Which gists should appear as pinned (by index: 0=real, 1+=mock)
+  pinnedIndices: number[];
+  // Which gists should appear as invalid pins (by index)
+  invalidIndices: number[];
+}> = {
+  // INSERT INTO rides — 2 pinned, 0 invalid
+  "5193222733586324267": {
+    extraGists: ["AiAC2AEC", "AiAC2AED"],
+    pinnedIndices: [0, 1],
+    invalidIndices: [],
+  },
+  // SELECT count(*) FROM user_promo_codes — 2 pinned, 1 invalid
+  "7562955041576980258": {
+    extraGists: ["AgHeAQIABwIAAAUADAYD", "AgHeAQIABwIAAAUADAYE"],
+    pinnedIndices: [0, 2],
+    invalidIndices: [2],
+  },
+  // SELECT city, id FROM vehicles — 2 pinned, 1 invalid
+  "3350546850174482743": {
+    extraGists: ["AgHWAQQAAwIAAAYF", "AgHWAQQAAwIAAAYG"],
+    pinnedIndices: [0, 1],
+    invalidIndices: [0],
+  },
+  // UPSERT INTO vehicle_location_histories — 2 pinned, 0 invalid
+  "7442192024002430332": {
+    extraGists: ["AgICCgUOMCLaAQAxBQQUBQ==", "AgICCgUOMCLaAQAxBQQUBg=="],
+    pinnedIndices: [0, 1],
+    invalidIndices: [],
+  },
+  // INSERT INTO user_promo_codes — 2 pinned, 0 invalid
+  "3939633309730011619": {
+    extraGists: ["AiAC3gEC", "AiAC3gED"],
+    pinnedIndices: [0, 1],
+    invalidIndices: [],
+  },
+};
+
+// Create mock plan entries based on a real plan, with varied stats.
+function createMockPlans(
+  realPlans: PlanHashStats[],
+  fingerprintID: string,
+): PlanHashStats[] {
+  const config = MOCK_PIN_CONFIG[fingerprintID];
+  if (!config || !realPlans?.length) return realPlans || [];
+
+  const basePlan = realPlans[0];
+  const baseStats = basePlan.stats;
+  const baseMeta = basePlan.metadata;
+
+  const mockPlans = config.extraGists.map((gist, i) => {
+    // Vary the stats to make each plan look different
+    const countMultiplier = [0.3, 0.1][i] || 0.2;
+    const latencyMultiplier = [1.4, 0.7][i] || 1.0;
+    const baseCount = longToInt(baseStats?.count || Long.ZERO);
+    const mockCount = Math.max(1, Math.round(baseCount * countMultiplier));
+
+    return {
+      metadata: {
+        ...baseMeta,
+        total_count: Long.fromNumber(mockCount),
+        full_scan_count: Long.fromNumber(
+          Math.round(mockCount * (i === 0 ? 0.1 : 0.8)),
+        ),
+        dist_sql_count: Long.fromNumber(mockCount),
+        vec_count: Long.fromNumber(mockCount),
+        databases: baseMeta?.databases || ["movr"],
+        query: baseMeta?.query || "",
+      },
+      stats: {
+        ...baseStats,
+        plan_gists: [gist],
+        count: Long.fromNumber(mockCount),
+        first_attempt_count: Long.fromNumber(mockCount),
+        run_lat: {
+          mean: (baseStats?.run_lat?.mean || 0.002) * latencyMultiplier,
+          squared_diffs: 0,
+        },
+        rows_read: {
+          mean: (baseStats?.rows_read?.mean || 1) * (i === 0 ? 2.5 : 0.5),
+          squared_diffs: 0,
+        },
+        rows_written: baseStats?.rows_written || { mean: 0, squared_diffs: 0 },
+        latency_info: {
+          min: (baseStats?.run_lat?.mean || 0.002) * latencyMultiplier * 0.5,
+          max: (baseStats?.run_lat?.mean || 0.002) * latencyMultiplier * 3.0,
+          p50: (baseStats?.run_lat?.mean || 0.002) * latencyMultiplier * 0.9,
+          p99: (baseStats?.run_lat?.mean || 0.002) * latencyMultiplier * 2.5,
+        },
+        last_exec_timestamp: {
+          seconds: Long.fromNumber(
+            Math.floor(Date.now() / 1000) - (i + 1) * 1800,
+          ),
+          nanos: 0,
+        },
+        indexes: baseStats?.indexes || [],
+        index_recommendations: i === 0
+          ? ["creation : CREATE INDEX ON rides (start_time)"]
+          : [],
+        generic_count: Long.fromNumber(0),
+        stmt_hints_count: Long.fromNumber(0),
+      },
+      explain_plan: `Plan Gist: ${gist}\n\n• scan\n  table: ${baseMeta?.query?.match(/(?:FROM|INTO)\s+(\w+)/i)?.[1] || "table"}@primary\n  spans: ALL`,
+      plan_hash: Long.fromNumber(1000 + i),
+      index_recommendations: [],
+    } as PlanHashStats;
+  });
+
+  return [...realPlans, ...mockPlans];
+}
+
 interface PlanDetailsProps {
   plans: PlanHashStats[];
   statementFingerprintID: string;
@@ -48,7 +164,7 @@ interface PlanDetailsProps {
 }
 
 export function PlanDetails({
-  plans,
+  plans: rawPlans,
   statementFingerprintID,
   hasAdminRole,
 }: PlanDetailsProps): React.ReactElement {
@@ -63,22 +179,34 @@ export function PlanDetails({
     ascending: false,
     columnTitle: "insights",
   });
-  // Mock pinned fingerprint IDs matching pinnedPlansPage.tsx mock data.
-  const PINNED_FINGERPRINT_IDS = new Set([
-    "5193222733586324267",  // INSERT INTO rides
-    "7562955041576980258",  // SELECT count(*) FROM user_promo_codes
-    "3350546850174482743",  // SELECT city, id FROM vehicles
-    "7442192024002430332",  // UPSERT INTO vehicle_location_histories
-    "3939633309730011619",  // INSERT INTO user_promo_codes
-  ]);
+
+  // Inject mock plans so each fingerprint has 3+ plan gists
+  const plans = React.useMemo(
+    () => createMockPlans(rawPlans, statementFingerprintID),
+    [rawPlans, statementFingerprintID],
+  );
+
+  const config = MOCK_PIN_CONFIG[statementFingerprintID];
 
   const initPinnedGists = React.useMemo(() => {
-    const hasPins = PINNED_FINGERPRINT_IDS.has(statementFingerprintID);
-    if (hasPins && plans?.length > 0) {
-      const firstGist = plans[0]?.stats?.plan_gists?.[0];
-      if (firstGist) return new Set([firstGist]);
+    if (!config || !plans?.length) return new Set<string>();
+    const pinned = new Set<string>();
+    for (const idx of config.pinnedIndices) {
+      const gist = plans[idx]?.stats?.plan_gists?.[0];
+      if (gist) pinned.add(gist);
     }
-    return new Set<string>();
+    return pinned;
+  }, [statementFingerprintID, plans]);
+
+  // Compute the set of gists that are invalid pins
+  const invalidGists = React.useMemo(() => {
+    if (!config || !plans?.length) return new Set<string>();
+    const invalid = new Set<string>();
+    for (const idx of config.invalidIndices) {
+      const gist = plans[idx]?.stats?.plan_gists?.[0];
+      if (gist) invalid.add(gist);
+    }
+    return invalid;
   }, [statementFingerprintID, plans]);
 
   const [pinnedGists, setPinnedGists] = useState<Set<string>>(new Set());
@@ -158,6 +286,7 @@ export function PlanDetails({
         onChangeSortSetting={setInsightsSortSetting}
         hasAdminRole={hasAdminRole}
         pinnedGists={pinnedGists}
+        invalidGists={invalidGists}
         onPin={handlePin}
         onUnpin={handleUnpin}
       />
@@ -180,6 +309,7 @@ export function PlanDetails({
             sortSetting={plansSortSetting}
             onChangeSortSetting={setPlansSortSetting}
             pinnedGists={pinnedGists}
+            invalidGists={invalidGists}
             onPin={handlePin}
             onUnpin={handleUnpin}
           />
@@ -195,6 +325,7 @@ interface PlanTableProps {
   sortSetting: SortSetting;
   onChangeSortSetting: (ss: SortSetting) => void;
   pinnedGists?: Set<string>;
+  invalidGists?: Set<string>;
   onPin?: (gist: string) => void;
   onUnpin?: (gist: string) => void;
 }
@@ -205,10 +336,11 @@ function PlanTable({
   sortSetting,
   onChangeSortSetting,
   pinnedGists,
+  invalidGists,
   onPin,
   onUnpin,
 }: PlanTableProps): React.ReactElement {
-  const columns = makeExplainPlanColumns(handleDetails, pinnedGists, onPin, onUnpin);
+  const columns = makeExplainPlanColumns(handleDetails, pinnedGists, invalidGists, onPin, onUnpin);
   return (
     <PlansSortedTable
       columns={columns}
@@ -228,6 +360,7 @@ interface ExplainPlanProps {
   onChangeSortSetting: (ss: SortSetting) => void;
   hasAdminRole: boolean;
   pinnedGists?: Set<string>;
+  invalidGists?: Set<string>;
   onPin?: (gist: string) => void;
   onUnpin?: (gist: string) => void;
 }
@@ -240,13 +373,13 @@ function ExplainPlan({
   onChangeSortSetting,
   hasAdminRole,
   pinnedGists,
+  invalidGists,
   onPin,
   onUnpin,
 }: ExplainPlanProps): React.ReactElement {
   const gist = plan.stats.plan_gists?.[0] || "";
   const isPinned = pinnedGists?.has(gist) || false;
-  const INVALID_FINGERPRINTS = new Set(["3350546850174482743"]);
-  const isInvalidPin = isPinned && INVALID_FINGERPRINTS.has(statementFingerprintID);
+  const isInvalidPin = isPinned && (invalidGists?.has(gist) || false);
   const explainPlan =
     `Plan Gist: ${gist} \n\n` +
     (plan.explain_plan === "" ? "unavailable" : plan.explain_plan);
@@ -268,52 +401,41 @@ function ExplainPlan({
           All Plans
         </Button>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {isPinned && (
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                padding: "2px 8px",
-                borderRadius: "3px",
-                fontSize: "12px",
-                fontWeight: 400,
-                lineHeight: "20px",
-                whiteSpace: "nowrap",
-                backgroundColor: isInvalidPin ? "#ffe9eb" : "#e1ecff",
-                color: isInvalidPin ? "#cd2939" : "#0037a5",
-              }}
-            >
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 17v5" />
-                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor" />
-              </svg>
-              {isInvalidPin ? "Invalid plan pin" : "Plan pinned"}
-            </span>
-          )}
-          <button
-            onClick={() => isPinned ? onUnpin?.(gist) : onPin?.(gist)}
+          <span
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "4px",
-              padding: "4px 10px",
+              padding: "0 8px",
+              borderRadius: "3px",
               fontSize: "12px",
-              fontWeight: 600,
-              lineHeight: "20px",
+              fontWeight: 400,
+              height: "28px",
+              whiteSpace: "nowrap",
+              backgroundColor: isPinned ? (isInvalidPin ? "#ffe9eb" : "#e1ecff") : "#f0f2f5",
+              color: isPinned ? (isInvalidPin ? "#cd2939" : "#0037a5") : "#475872",
+            }}
+          >
+            {isPinned ? (isInvalidPin ? "Invalid pin" : "Pinned") : "Unpinned"}
+          </span>
+          <button
+            onClick={() => isPinned ? onUnpin?.(gist) : onPin?.(gist)}
+            title={isPinned ? "Unpin" : "Pin"}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "6px",
               border: "1px solid #c0c6d9",
               borderRadius: "4px",
               backgroundColor: "white",
               color: isPinned ? "#0055ff" : "#394455",
               cursor: "pointer",
-              whiteSpace: "nowrap",
             }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 17v5" />
               <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned ? "currentColor" : "none"} />
             </svg>
-            {isPinned ? "Unpin" : "Pin"}
           </button>
         </div>
       </div>
@@ -423,47 +545,6 @@ function PlanPinningControls({
   pinnedGists,
   statementFingerprintID,
 }: PlanPinningControlsProps): React.ReactElement {
-  const [showDrift, setShowDrift] = useState(false);
-
-  // Mock data aligned with pinnedPlansPage.tsx
-  const MOCK_PINNED_DATA: Record<string, { executions: number; overridden: number; status: string }> = {
-    "5193222733586324267": { executions: 507, overridden: 61, status: "active" },
-    "7562955041576980258": { executions: 120, overridden: 8, status: "active" },
-    "3350546850174482743": { executions: 0, overridden: 0, status: "invalid" },
-    "7442192024002430332": { executions: 12378, overridden: 1856, status: "active" },
-    "3939633309730011619": { executions: 116, overridden: 0, status: "active" },
-  };
-
-  // Use real execution data from plans, with mock overridden from pinned plans page
-  const totalExecutions = plans.reduce((sum, p) => sum + longToInt(p.stats.count), 0);
-  const pinnedExecutions = plans
-    .filter(p => pinnedGists.has(p.stats.plan_gists?.[0] || ""))
-    .reduce((sum, p) => sum + longToInt(p.stats.count), 0);
-  const pinnedPct = totalExecutions > 0 ? Math.round((pinnedExecutions / totalExecutions) * 100) : 0;
-
-  // Pull overridden count from mock data to align with Pinned Plans page
-  const mockData = MOCK_PINNED_DATA[statementFingerprintID];
-  const wouldHaveChosenDifferent = mockData?.overridden || 0;
-  const isInvalid = mockData?.status === "invalid";
-  const fallbackExecutions = 0;
-
-  // Mock drift data: for each unpinned plan, show it as a "candidate" the optimizer would pick
-  const driftCandidates = pinnedCount > 0
-    ? plans
-        .filter(p => !pinnedGists.has(p.stats.plan_gists?.[0] || ""))
-        .map(p => ({
-          gist: p.stats.plan_gists?.[0] || "",
-          wouldHaveExecuted: Math.round(longToInt(p.stats.count) * 0.3),
-          lastWouldHaveExecuted: TimestampToMoment(p.stats.last_exec_timestamp),
-          avgLatency: p.stats.run_lat?.mean || 0,
-        }))
-    : [];
-
-  // Invalid pins: use status from mock data
-  const invalidPins = isInvalid
-    ? [{ gist: Array.from(pinnedGists)[0], reason: "Referenced index 'vehicles@idx_city_status' was dropped" }]
-    : [];
-
   return (
     <div style={{ marginBottom: "0px", marginTop: "-32px" }}>
       <div
@@ -481,104 +562,7 @@ function PlanPinningControls({
               ? `1-${totalPlans} of ${totalPlans} plans`
               : `1-5 of ${totalPlans} plans`}
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {driftCandidates.length > 0 && (
-            <button
-              onClick={() => setShowDrift(!showDrift)}
-              style={{
-                padding: "4px 10px",
-                fontSize: "12px",
-                fontWeight: 500,
-                border: "1px solid #c0c6d9",
-                borderRadius: "4px",
-                backgroundColor: "white",
-                color: "#394455",
-                cursor: "pointer",
-              }}
-            >
-              {showDrift ? "Hide" : "Show"} Drift Analysis ({driftCandidates.length})
-            </button>
-          )}
-        </div>
       </div>
-
-
-      {/* Drift Analysis */}
-      {showDrift && driftCandidates.length > 0 && (
-        <div
-          style={{
-            marginBottom: "16px",
-            border: "1px solid #e7ecf3",
-            borderRadius: "4px",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "8px 16px",
-              backgroundColor: "#f5f7fa",
-              borderBottom: "1px solid #e7ecf3",
-              fontSize: "13px",
-              fontWeight: 600,
-              color: "#394455",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span>Plan Drift Analysis</span>
-            <span style={{ fontSize: "12px", fontWeight: 400, color: "#7b8794" }}>
-              Plans the optimizer would have chosen instead of the pinned plan
-            </span>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-              <thead>
-                <tr style={{ backgroundColor: "#f9fafb" }}>
-                  <th style={{ padding: "8px 16px", textAlign: "left", fontWeight: 600, color: "#394455", borderBottom: "1px solid #e7ecf3" }}>Candidate Plan Gist</th>
-                  <th style={{ padding: "8px 16px", textAlign: "right", fontWeight: 600, color: "#394455", borderBottom: "1px solid #e7ecf3" }}>Would-Have-Executed Count</th>
-                  <th style={{ padding: "8px 16px", textAlign: "right", fontWeight: 600, color: "#394455", borderBottom: "1px solid #e7ecf3" }}>Avg Latency</th>
-                  <th style={{ padding: "8px 16px", textAlign: "right", fontWeight: 600, color: "#394455", borderBottom: "1px solid #e7ecf3" }}>Last Would-Have-Executed</th>
-                  <th style={{ padding: "8px 16px", textAlign: "center", fontWeight: 600, color: "#394455", borderBottom: "1px solid #e7ecf3" }}>Assessment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {driftCandidates.map((candidate, i) => {
-                  // Mock assessment: compare latency
-                  const pinnedPlan = plans.find(p => pinnedGists.has(p.stats.plan_gists?.[0] || ""));
-                  const pinnedLatency = pinnedPlan?.stats.run_lat?.mean || 0;
-                  const isBetter = candidate.avgLatency < pinnedLatency * 0.9;
-                  const isWorse = candidate.avgLatency > pinnedLatency * 1.1;
-                  return (
-                    <tr key={i} style={{ borderBottom: i < driftCandidates.length - 1 ? "1px solid #f0f0f0" : "none" }}>
-                      <td style={{ padding: "8px 16px", fontFamily: "monospace", fontSize: "12px" }}>
-                        {candidate.gist.length > 30 ? candidate.gist.slice(0, 30) + "..." : candidate.gist}
-                      </td>
-                      <td style={{ padding: "8px 16px", textAlign: "right" }}>{candidate.wouldHaveExecuted}</td>
-                      <td style={{ padding: "8px 16px", textAlign: "right" }}>{Duration(candidate.avgLatency * 1e9)}</td>
-                      <td style={{ padding: "8px 16px", textAlign: "right" }}>{candidate.lastWouldHaveExecuted.format("MMM D, YYYY HH:mm")}</td>
-                      <td style={{ padding: "8px 16px", textAlign: "center" }}>
-                        <span
-                          style={{
-                            padding: "2px 8px",
-                            borderRadius: "3px",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            backgroundColor: isBetter ? "#e3f5e0" : isWorse ? "#ffe9eb" : "#e7ecf3",
-                            color: isBetter ? "#237300" : isWorse ? "#cd2939" : "#394455",
-                          }}
-                        >
-                          {isBetter ? "Potential Improvement" : isWorse ? "Regression Risk" : "Comparable"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
     </div>
   );
