@@ -809,12 +809,12 @@ export function StatementDetails(
                         <span style={{ display: "inline-flex", gap: "6px" }}>
                           {pd.active > 0 && (
                             <span style={bStyle(false)}>
-                              Pinned{pd.active > 1 ? ` (${pd.active})` : ""}
+                              Pinned ({pd.active})
                             </span>
                           )}
                           {pd.invalid > 0 && (
                             <span style={bStyle(true)}>
-                              Invalid pin{pd.invalid > 1 ? ` (${pd.invalid})` : ""}
+                              Invalid pin ({pd.invalid})
                             </span>
                           )}
                         </span>

@@ -194,18 +194,18 @@ export function makeStatementsColumns(
           placement="bottom"
           content="Whether this statement has pinned execution plans."
         >
-          Plan Pinning
+          Plan pin status
         </Tooltip>
       ),
       cell: (stmt: AggregateStatistics) => {
         // Mock pinned fingerprint IDs matching pinnedPlansPage.tsx
         // Maps fingerprint ID to { active: count, invalid: count }
         const PINNED_IDS: Record<string, { active: number; invalid: number }> = {
-          "5193222733586324267": { active: 1, invalid: 0 },
-          "7562955041576980258": { active: 1, invalid: 0 },
-          "3350546850174482743": { active: 0, invalid: 1 },
-          "7442192024002430332": { active: 1, invalid: 0 },
-          "3939633309730011619": { active: 1, invalid: 0 },
+          "5193222733586324267": { active: 2, invalid: 0 },
+          "7562955041576980258": { active: 1, invalid: 1 },
+          "3350546850174482743": { active: 1, invalid: 1 },
+          "7442192024002430332": { active: 2, invalid: 0 },
+          "3939633309730011619": { active: 2, invalid: 0 },
         };
         const pinData = PINNED_IDS[stmt.aggregatedFingerprintID];
         if (!pinData) {
@@ -229,12 +229,12 @@ export function makeStatementsColumns(
           <span style={{ display: "inline-flex", gap: "6px", flexWrap: "wrap" }}>
             {pinData.active > 0 && (
               <span style={badgeStyle(false)}>
-                Pinned{pinData.active > 1 ? ` (${pinData.active})` : ""}
+                Pinned ({pinData.active})
               </span>
             )}
             {pinData.invalid > 0 && (
               <span style={badgeStyle(true)}>
-                Invalid pin{pinData.invalid > 1 ? ` (${pinData.invalid})` : ""}
+                Invalid pin ({pinData.invalid})
               </span>
             )}
           </span>
