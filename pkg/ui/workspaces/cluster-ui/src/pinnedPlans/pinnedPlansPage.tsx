@@ -455,18 +455,18 @@ export function PinnedPlansPage(): React.ReactElement {
 
   const tabKeys: TabType[] = ["overview", "drift", "audit"];
   const tabBtnStyle = (tab: TabType): React.CSSProperties => ({
-    padding: tab === tabKeys[0] ? "12px 16px 0 0" : "12px 16px 0 16px",
-    fontSize: "14px",
-    fontWeight: 400,
-    color: activeTab === tab ? "#0055ff" : "#475872",
-    backgroundColor: "transparent",
-    border: "none",
+    padding: "6px 16px",
+    fontSize: "13px",
+    fontWeight: activeTab === tab ? 600 : 400,
+    color: activeTab === tab ? "#0037a5" : "#475872",
+    backgroundColor: activeTab === tab ? "#e1ecff" : "transparent",
+    border: activeTab === tab ? "none" : "1px solid transparent",
+    borderRadius: "20px",
     cursor: "pointer",
-    marginRight: "0px",
-    marginBottom: "-1px",
     fontFamily,
     letterSpacing: "normal",
-    lineHeight: "22px",
+    lineHeight: "20px",
+    transition: "all 0.15s ease",
   });
 
   return (
@@ -477,28 +477,37 @@ export function PinnedPlansPage(): React.ReactElement {
         .pp-link:hover { color: #0055ff; text-decoration: underline; }
         .pp-link-mono { font-family: RobotoMono-Medium, Roboto Mono, monospace; font-size: 12px; color: #242A35; white-space: nowrap; text-decoration: none; display: block; max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
         .pp-link-mono:hover { color: #0055ff; text-decoration: underline; }
+        .pp-pill-tab:hover { background-color: #f0f2f5; }
       `}</style>
 
       {/* Tabs */}
-      <div style={{ borderBottom: "1px solid #d6dbe7", marginBottom: "16px", display: "flex" }}>
+      <div style={{ marginBottom: "16px", display: "flex", gap: "6px", alignItems: "center" }}>
         {([
           { key: "overview" as TabType, label: "All pinned plans" },
           { key: "drift" as TabType, label: "Drift analysis", badge: mockDriftAlerts.length > 0 ? mockDriftAlerts.length : undefined },
           { key: "audit" as TabType, label: "Audit log" },
         ]).map(tab => (
-          <button key={tab.key} style={tabBtnStyle(tab.key)} onClick={() => setActiveTab(tab.key)}>
-            <span style={{
-              display: "inline-block",
-              paddingBottom: "12px",
-              borderBottom: activeTab === tab.key ? "2px solid #0055ff" : "2px solid transparent",
-            }}>
-              {tab.label}
-              {tab.badge != null && (
-                <span style={{ marginLeft: "6px", display: "inline-flex", alignItems: "center", justifyContent: "center", width: "18px", height: "18px", borderRadius: "50%", fontSize: "11px", fontWeight: 600, backgroundColor: "#e1ecff", color: "#0037a5", border: "1px solid #0055ff" }}>
-                  {tab.badge}
-                </span>
-              )}
-            </span>
+          <button key={tab.key} style={tabBtnStyle(tab.key)} className={activeTab !== tab.key ? "pp-pill-tab" : ""} onClick={() => setActiveTab(tab.key)}>
+            {tab.label}
+            {tab.badge != null && (
+              <span style={{
+                marginLeft: "6px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "18px",
+                height: "18px",
+                borderRadius: "50%",
+                fontSize: "11px",
+                fontWeight: 600,
+                backgroundColor: "#0055ff",
+                color: "#ffffff",
+                position: "relative",
+                top: "-1px",
+              }}>
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>

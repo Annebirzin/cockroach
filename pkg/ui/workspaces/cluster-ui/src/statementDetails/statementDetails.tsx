@@ -780,6 +780,48 @@ export function StatementDetails(
             </Col>
             <Col className="gutter-row" span={12}>
               <SummaryCard className={cx("summary-card")}>
+                {(() => {
+                  const PIN_DATA: Record<string, { active: number; invalid: number }> = {
+                    "5193222733586324267": { active: 2, invalid: 0 },
+                    "7562955041576980258": { active: 1, invalid: 1 },
+                    "3350546850174482743": { active: 1, invalid: 1 },
+                    "7442192024002430332": { active: 2, invalid: 0 },
+                    "3939633309730011619": { active: 2, invalid: 0 },
+                  };
+                  const pd = PIN_DATA[statementFingerprintID];
+                  if (!pd) return null;
+                  const bStyle = (isInv: boolean): React.CSSProperties => ({
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "0 8px",
+                    borderRadius: "3px",
+                    fontSize: "12px",
+                    fontWeight: 400,
+                    height: "24px",
+                    whiteSpace: "nowrap" as const,
+                    backgroundColor: isInv ? "#ffe9eb" : "#e1ecff",
+                    color: isInv ? "#cd2939" : "#0037a5",
+                  });
+                  return (
+                    <SummaryCardItem
+                      label="Plan pin status"
+                      value={
+                        <span style={{ display: "inline-flex", gap: "6px" }}>
+                          {pd.active > 0 && (
+                            <span style={bStyle(false)}>
+                              Pinned{pd.active > 1 ? ` (${pd.active})` : ""}
+                            </span>
+                          )}
+                          {pd.invalid > 0 && (
+                            <span style={bStyle(true)}>
+                              Invalid pin{pd.invalid > 1 ? ` (${pd.invalid})` : ""}
+                            </span>
+                          )}
+                        </span>
+                      }
+                    />
+                  );
+                })()}
                 <SummaryCardItem
                   label="Failure Count"
                   value={Count(failureCount.toNumber())}
@@ -1321,48 +1363,9 @@ export function StatementDetails(
         >
           {new URLSearchParams(history.location.search).get("from") === "pinned-plans" ? "Pinned plans" : "Statements"}
         </Button>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <h3 className={commonStyles("base-heading", "no-margin-bottom")} style={{ margin: 0, padding: 0 }}>
-            Statement Fingerprint
-          </h3>
-          {(() => {
-            const PINNED_IDS: Record<string, { active: number; invalid: number }> = {
-              "5193222733586324267": { active: 2, invalid: 0 },
-              "7562955041576980258": { active: 1, invalid: 1 },
-              "3350546850174482743": { active: 1, invalid: 1 },
-              "7442192024002430332": { active: 2, invalid: 0 },
-              "3939633309730011619": { active: 2, invalid: 0 },
-            };
-            const pinData = PINNED_IDS[statementFingerprintID];
-            if (!pinData) return null;
-            const badgeStyle = (isInvalid: boolean): React.CSSProperties => ({
-              display: "inline-flex",
-              alignItems: "center",
-              padding: "0 8px",
-              borderRadius: "3px",
-              fontSize: "12px",
-              fontWeight: 600,
-              height: "24px",
-              whiteSpace: "nowrap" as const,
-              backgroundColor: isInvalid ? "#ffe9eb" : "#e1ecff",
-              color: isInvalid ? "#cd2939" : "#0037a5",
-            });
-            return (
-              <span style={{ display: "inline-flex", gap: "6px" }}>
-                {pinData.active > 0 && (
-                  <span style={badgeStyle(false)}>
-                    Pinned{pinData.active > 1 ? ` (${pinData.active})` : ""}
-                  </span>
-                )}
-                {pinData.invalid > 0 && (
-                  <span style={badgeStyle(true)}>
-                    Invalid pin{pinData.invalid > 1 ? ` (${pinData.invalid})` : ""}
-                  </span>
-                )}
-              </span>
-            );
-          })()}
-        </div>
+        <h3 className={commonStyles("base-heading", "no-margin-bottom")} style={{ margin: 0, padding: 0 }}>
+          Statement Fingerprint
+        </h3>
       </div>
       <section className={cx("section", "section--container")}>
         <Loading
