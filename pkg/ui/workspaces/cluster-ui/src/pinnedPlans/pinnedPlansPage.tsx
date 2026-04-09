@@ -3,10 +3,13 @@
 // Use of this software is governed by the CockroachDB Software License
 // included in the /LICENSE file.
 
-import React, { useState } from "react";
+import { Tooltip } from "@cockroachlabs/ui-components";
+import React, { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Helmet } from "react-helmet";
+
+import { Modal } from "../modal";
 
 // Font family matching the DB Console SortedTable
 const fontFamily = "SourceSansPro-Regular, Source Sans Pro, sans-serif";
@@ -216,6 +219,7 @@ const mockDriftAlerts = [
     fingerprintID: "5193222733586324267",
     statement:
       "INSERT INTO rides VALUES ($1, $2, $3, $4, $5, $6, $7, now(), $8, $9)",
+    pinnedGist: "AiAC2AEB",
     candidateGist: "AiAC2AEC",
     wouldHaveExecuted: 342,
     lastWouldHaveExecuted: new Date("2026-03-27T19:58:00"),
@@ -228,6 +232,7 @@ const mockDriftAlerts = [
     fingerprintID: "7442192024002430332",
     statement:
       "UPSERT INTO vehicle_location_histories VALUES ($1, $2, now(), $3, $4)",
+    pinnedGist: "AgICCgUOMCLaAQAxBQQUBdgBAgQBKQ==",
     candidateGist: "AgICCgUOMCLaAQAxBQQUBdgBAgQBKg==",
     wouldHaveExecuted: 1203,
     lastWouldHaveExecuted: new Date("2026-03-27T20:02:00"),
@@ -240,6 +245,7 @@ const mockDriftAlerts = [
     fingerprintID: "7562955041576980258",
     statement:
       "SELECT count(*) FROM user_promo_codes WHERE ((city = $1) AND (user_id = $2)) AND (code = $3)",
+    pinnedGist: "AgHeAQIABwIAAAUADAYC",
     candidateGist: "AgHeAQIABwIAAAUADAYD",
     wouldHaveExecuted: 18,
     lastWouldHaveExecuted: new Date("2026-03-27T18:30:00"),
@@ -443,6 +449,50 @@ export function PinnedPlansPage(): React.ReactElement {
   const [pinnedCandidates, setPinnedCandidates] = useState<Set<string>>(new Set());
   // Track which plans have been "unpinned" on the overview table (mock interaction)
   const [unpinnedOverview, setUnpinnedOverview] = useState<Set<string>>(new Set());
+  const [unpinnedDrift, setUnpinnedDrift] = useState<Set<string>>(new Set());
+
+  // Pin/unpin confirmation modal state
+  const [pinModal, setPinModal] = useState<{
+    visible: boolean;
+    action: "pin" | "unpin";
+    gist: string;
+    target: "overview" | "drift" | "candidate";
+  }>({ visible: false, action: "pin", gist: "", target: "overview" });
+
+  const showPinModal = useCallback((action: "pin" | "unpin", gist: string, target: "overview" | "drift" | "candidate") => {
+    setPinModal({ visible: true, action, gist, target });
+  }, []);
+
+  const handlePinConfirm = useCallback(() => {
+    const { action, gist, target } = pinModal;
+    if (target === "overview") {
+      setUnpinnedOverview(prev => {
+        const next = new Set(prev);
+        if (action === "unpin") next.add(gist);
+        else next.delete(gist);
+        return next;
+      });
+    } else if (target === "drift") {
+      setUnpinnedDrift(prev => {
+        const next = new Set(prev);
+        if (action === "unpin") next.add(gist);
+        else next.delete(gist);
+        return next;
+      });
+    } else if (target === "candidate") {
+      setPinnedCandidates(prev => {
+        const next = new Set(prev);
+        if (action === "pin") next.add(gist);
+        else next.delete(gist);
+        return next;
+      });
+    }
+    setPinModal(prev => ({ ...prev, visible: false }));
+  }, [pinModal]);
+
+  const handlePinCancel = useCallback(() => {
+    setPinModal(prev => ({ ...prev, visible: false }));
+  }, []);
 
   const handleSort = (setter: React.Dispatch<React.SetStateAction<SortConfig | null>>) => (column: string) => {
     setter(prev => {
@@ -469,15 +519,19 @@ export function PinnedPlansPage(): React.ReactElement {
     transition: "all 0.15s ease",
   });
 
+
   return (
     <div style={{ paddingRight: "24px" }}>
-      <Helmet title="Pinned Plans" />
+      <Helmet title="Plan Pinning" />
       <style>{`
         .pp-link { color: #394455; text-decoration: none; }
         .pp-link:hover { color: #0055ff; text-decoration: underline; }
         .pp-link-mono { font-family: RobotoMono-Medium, Roboto Mono, monospace; font-size: 12px; color: #242A35; white-space: nowrap; text-decoration: none; display: block; max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
         .pp-link-mono:hover { color: #0055ff; text-decoration: underline; }
         .pp-pill-tab:hover { background-color: #f0f2f5; }
+        .pp-pin-modal .crdb-ant-modal-close { top: 24px; right: 24px; }
+        .pp-pin-modal .crdb-ant-modal-header { display: flex; align-items: center; }
+        .pp-pin-modal .crdb-ant-modal-header h3 { font-weight: 600; }
       `}</style>
 
       {/* Tabs */}
@@ -548,17 +602,11 @@ export function PinnedPlansPage(): React.ReactElement {
                 <td style={tdFirstStyle}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <button
-                      onClick={() => {
-                        setUnpinnedOverview(prev => {
-                          const next = new Set(prev);
-                          if (next.has(plan.gist)) {
-                            next.delete(plan.gist);
-                          } else {
-                            next.add(plan.gist);
-                          }
-                          return next;
-                        });
-                      }}
+                      onClick={() => showPinModal(
+                        unpinnedOverview.has(plan.gist) ? "pin" : "unpin",
+                        plan.gist,
+                        "overview",
+                      )}
                       title={unpinnedOverview.has(plan.gist) ? "Pin" : "Unpin"}
                       style={{
                         display: "inline-flex",
@@ -638,10 +686,10 @@ export function PinnedPlansPage(): React.ReactElement {
           <table style={tableStyle}>
             <thead>
               <tr>
-                <th style={{ ...thStyle, paddingLeft: "24px" }}>Plan pin status</th>
+                <SortableHeader label="Assessment" column="assessment" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ paddingLeft: "24px" }} />
+                <SortableHeader label="Pinned plan gist" column="pinnedGist" sortConfig={driftSort} onSort={handleSort(setDriftSort)} />
                 <SortableHeader label="Candidate plan gist" column="candidateGist" sortConfig={driftSort} onSort={handleSort(setDriftSort)} />
                 <SortableHeader label="Statement" column="statement" sortConfig={driftSort} onSort={handleSort(setDriftSort)} />
-                <SortableHeader label="Assessment" column="assessment" sortConfig={driftSort} onSort={handleSort(setDriftSort)} />
                 <SortableHeader label="Pinned latency" column="pinnedLatency" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
                 <SortableHeader label="Candidate latency" column="candidateLatency" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
                 <SortableHeader label="Latency delta" column="latencyDelta" sortConfig={driftSort} onSort={handleSort(setDriftSort)} style={{ textAlign: "right" }} />
@@ -653,6 +701,7 @@ export function PinnedPlansPage(): React.ReactElement {
             <tbody>
               {sortData(mockDriftAlerts, driftSort, {
                 statement: d => d.statement,
+                pinnedGist: d => d.pinnedGist,
                 candidateGist: d => d.candidateGist,
                 wouldHaveExecuted: d => d.wouldHaveExecuted,
                 pinnedLatency: d => d.pinnedLatency,
@@ -663,66 +712,18 @@ export function PinnedPlansPage(): React.ReactElement {
               }).map((drift, i) => (
                 <tr key={i} style={rowStyle}>
                   <td style={tdFirstStyle}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <button
-                        onClick={() => {
-                          setPinnedCandidates(prev => {
-                            const next = new Set(prev);
-                            if (next.has(drift.candidateGist)) {
-                              next.delete(drift.candidateGist);
-                            } else {
-                              next.add(drift.candidateGist);
-                            }
-                            return next;
-                          });
-                        }}
-                        title={pinnedCandidates.has(drift.candidateGist) ? "Unpin" : "Pin"}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "6px",
-                          border: "1px solid #c0c6d9",
-                          borderRadius: "4px",
-                          backgroundColor: "white",
-                          color: pinnedCandidates.has(drift.candidateGist) ? "#0055ff" : "#394455",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 17v5" />
-                          <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={pinnedCandidates.has(drift.candidateGist) ? "currentColor" : "none"} />
-                        </svg>
-                      </button>
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          padding: "0 8px",
-                          borderRadius: "3px",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          height: "28px",
-                          whiteSpace: "nowrap",
-                          backgroundColor: pinnedCandidates.has(drift.candidateGist) ? "#e1ecff" : "#f0f2f5",
-                          color: pinnedCandidates.has(drift.candidateGist) ? "#0037a5" : "#475872",
-                        }}
-                      >
-                        {pinnedCandidates.has(drift.candidateGist) ? "Pinned" : "Unpinned"}
-                      </span>
-                    </div>
-                  </td>
-                  <td style={tdStyle}>
-                    <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
-                      {drift.candidateGist.length > 24 ? drift.candidateGist.slice(0, 24) + "..." : drift.candidateGist}
-                    </Link>
-                  </td>
-                  <td style={tdStyle}>
-                    <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?appNames=movr&from=pinned-plans`} className="pp-link-mono">
-                      {drift.statement}
-                    </Link>
-                  </td>
-                  <td style={tdStyle}>
+                    <Tooltip
+                      placement="bottom"
+                      content={
+                        <p style={{ margin: 0, maxWidth: "280px" }}>
+                          {drift.assessment === "potential-improvement"
+                            ? "The candidate plan has lower latency than the pinned plan. The optimizer may have found a better execution path. Consider testing and pinning the candidate."
+                            : drift.assessment === "stats-schema-issue"
+                            ? "The candidate plan differs due to changes in data distribution, table statistics, or schema (e.g., dropped index). Investigate the root cause — the pinned plan may eventually become invalid."
+                            : "The candidate plan has higher latency than the pinned plan. The pin is protecting against a regression. Investigate why the optimizer prefers a worse plan."}
+                        </p>
+                      }
+                    >
                     <span
                       style={{
                         display: "inline-flex",
@@ -733,6 +734,7 @@ export function PinnedPlansPage(): React.ReactElement {
                         fontWeight: 600,
                         lineHeight: "20px",
                         whiteSpace: "nowrap",
+                        cursor: "default",
                         backgroundColor: drift.assessment === "potential-improvement" ? "#e3f5e0"
                           : drift.assessment === "stats-schema-issue" ? "#fff4e1"
                           : "#ffe9eb",
@@ -745,6 +747,101 @@ export function PinnedPlansPage(): React.ReactElement {
                         : drift.assessment === "stats-schema-issue" ? "Stats/schema issue"
                         : "Regression risk"}
                     </span>
+                    </Tooltip>
+                  </td>
+                  <td style={tdStyle}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <button
+                        onClick={() => showPinModal(
+                          unpinnedDrift.has(drift.pinnedGist) ? "pin" : "unpin",
+                          drift.pinnedGist,
+                          "drift",
+                        )}
+                        title={unpinnedDrift.has(drift.pinnedGist) ? "Pin" : "Unpin"}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "6px",
+                          border: "1px solid #c0c6d9",
+                          borderRadius: "4px",
+                          backgroundColor: "white",
+                          color: unpinnedDrift.has(drift.pinnedGist) ? "#394455" : "#0055ff",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 17v5" />
+                          <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={unpinnedDrift.has(drift.pinnedGist) ? "none" : "currentColor"} />
+                        </svg>
+                      </button>
+                      {unpinnedDrift.has(drift.pinnedGist) ? (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            padding: "0 8px",
+                            borderRadius: "3px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            height: "28px",
+                            whiteSpace: "nowrap",
+                            backgroundColor: "#f0f2f5",
+                            color: "#475872",
+                          }}
+                        >
+                          Unpinned
+                        </span>
+                      ) : (
+                        <PlanPinBadge status="active" />
+                      )}
+                      <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
+                        {drift.pinnedGist.length > 24 ? drift.pinnedGist.slice(0, 24) + "..." : drift.pinnedGist}
+                      </Link>
+                    </div>
+                  </td>
+                  <td style={tdStyle}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {drift.assessment === "potential-improvement" && (
+                      <button
+                        onClick={() => showPinModal(
+                          pinnedCandidates.has(drift.candidateGist) ? "unpin" : "pin",
+                          drift.candidateGist,
+                          "candidate",
+                        )}
+                        title={pinnedCandidates.has(drift.candidateGist) ? "Unpin candidate" : "Pin this candidate plan"}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "6px",
+                          border: "1px solid #c0c6d9",
+                          borderRadius: "4px",
+                          backgroundColor: "white",
+                          color: pinnedCandidates.has(drift.candidateGist) ? "#0055ff" : "#394455",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 17v5" />
+                          <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={pinnedCandidates.has(drift.candidateGist) ? "currentColor" : "none"} />
+                        </svg>
+                      </button>
+                      )}
+                      {drift.assessment === "potential-improvement" &&
+                        pinnedCandidates.has(drift.candidateGist) && (
+                          <PlanPinBadge status="active" />
+                        )}
+                      <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
+                        {drift.candidateGist.length > 24 ? drift.candidateGist.slice(0, 24) + "..." : drift.candidateGist}
+                      </Link>
+                    </div>
+                  </td>
+                  <td style={tdStyle}>
+                    <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?appNames=movr&from=pinned-plans`} className="pp-link-mono">
+                      {drift.statement}
+                    </Link>
                   </td>
                   <td style={{ ...tdStyle, textAlign: "right" }}>{formatDuration(drift.pinnedLatency)}</td>
                   <td style={{ ...tdStyle, textAlign: "right" }}>{formatDuration(drift.candidateLatency)}</td>
@@ -757,9 +854,13 @@ export function PinnedPlansPage(): React.ReactElement {
                     {drift.lastWouldHaveExecuted.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                   </td>
                   <td style={{ ...tdStyle, textAlign: "center" }}>
-                    <button style={{ padding: "4px 8px", fontSize: "12px", fontWeight: 600, border: "1px solid #c0c6d9", borderRadius: "4px", backgroundColor: "white", color: "#394455", cursor: "pointer", fontFamily, whiteSpace: "nowrap", lineHeight: "20px" }}>
+                    {drift.assessment === "potential-improvement" && (
+                    <button
+                      style={{ padding: "4px 8px", fontSize: "12px", fontWeight: 600, border: "1px solid #c0c6d9", borderRadius: "4px", backgroundColor: "white", color: "#394455", cursor: "pointer", fontFamily, whiteSpace: "nowrap", lineHeight: "20px" }}
+                    >
                       Test plan
                     </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -830,6 +931,21 @@ export function PinnedPlansPage(): React.ReactElement {
           </table>
         </div>
       )}
+      <Modal
+        visible={pinModal.visible}
+        onOk={handlePinConfirm}
+        onCancel={handlePinCancel}
+        okText={pinModal.action === "pin" ? "Pin plan" : "Unpin plan"}
+        cancelText="Cancel"
+        title={pinModal.action === "pin" ? "Pin this plan" : "Unpin this plan"}
+        className="pp-pin-modal"
+      >
+        <p style={{ margin: 0, fontSize: "14px", lineHeight: "22px", color: "#394455" }}>
+          {pinModal.action === "pin"
+            ? "Pinning a plan forces the optimizer to use this specific execution plan for the statement. Other potentially better plans will be ignored until this pin is removed."
+            : "Unpinning this plan allows the optimizer to choose the best execution plan automatically. If the optimizer selects a worse plan, you may see a performance regression."}
+        </p>
+      </Modal>
     </div>
   );
 }
