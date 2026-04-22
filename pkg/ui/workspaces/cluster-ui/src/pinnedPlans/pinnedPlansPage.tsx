@@ -707,7 +707,7 @@ export function PinnedPlansPage(): React.ReactElement {
                           {drift.assessment === "potential-improvement"
                             ? "The candidate plan has lower latency than the pinned plan. The optimizer may have found a better execution path. Consider testing and pinning the candidate."
                             : drift.assessment === "pin-invalid"
-                            ? "Pinned plan invalid due to a schema change. The optimizer fell back to the candidate plan. Pin it to make it the active plan, or unpin to let the optimizer choose freely."
+                            ? "Pinned plan is invalid (e.g., schema change). The optimizer fell back to the candidate plan. Pin it to make it the active plan, or unpin to let the optimizer choose freely."
                             : "The candidate plan has higher latency than the pinned plan. The pin is protecting against a regression. Investigate why the optimizer prefers a worse plan."}
                         </p>
                       }
@@ -781,7 +781,10 @@ export function PinnedPlansPage(): React.ReactElement {
                           Unpinned
                         </span>
                       ) : (
-                        <PlanPinBadge status="active" />
+                        <PlanPinBadge
+                          status={drift.assessment === "pin-invalid" ? "invalid" : "active"}
+                          reason={drift.assessment === "pin-invalid" ? "Plan invalid (e.g., schema change)" : undefined}
+                        />
                       )}
                       <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
                         {drift.pinnedGist.length > 24 ? drift.pinnedGist.slice(0, 24) + "..." : drift.pinnedGist}
