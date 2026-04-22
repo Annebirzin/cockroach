@@ -9,7 +9,7 @@ import { Link } from "react-router-dom";
 
 import { Helmet } from "react-helmet";
 
-import { Modal } from "../modal";
+import { PinPlanModal, usePinPlanModal } from "./pinPlanModal";
 
 // Font family matching the DB Console SortedTable
 const fontFamily = "SourceSansPro-Regular, Source Sans Pro, sans-serif";
@@ -451,48 +451,39 @@ export function PinnedPlansPage(): React.ReactElement {
   const [unpinnedOverview, setUnpinnedOverview] = useState<Set<string>>(new Set());
   const [unpinnedDrift, setUnpinnedDrift] = useState<Set<string>>(new Set());
 
-  // Pin/unpin confirmation modal state
-  const [pinModal, setPinModal] = useState<{
-    visible: boolean;
-    action: "pin" | "unpin";
-    gist: string;
-    target: "overview" | "drift" | "candidate";
-  }>({ visible: false, action: "pin", gist: "", target: "overview" });
+  const pinModal = usePinPlanModal();
 
-  const showPinModal = useCallback((action: "pin" | "unpin", gist: string, target: "overview" | "drift" | "candidate") => {
-    setPinModal({ visible: true, action, gist, target });
-  }, []);
-
-  const handlePinConfirm = useCallback(() => {
-    const { action, gist, target } = pinModal;
-    if (target === "overview") {
-      setUnpinnedOverview(prev => {
-        const next = new Set(prev);
-        if (action === "unpin") next.add(gist);
-        else next.delete(gist);
-        return next;
-      });
-    } else if (target === "drift") {
-      setUnpinnedDrift(prev => {
-        const next = new Set(prev);
-        if (action === "unpin") next.add(gist);
-        else next.delete(gist);
-        return next;
-      });
-    } else if (target === "candidate") {
-      setPinnedCandidates(prev => {
-        const next = new Set(prev);
-        if (action === "pin") next.add(gist);
-        else next.delete(gist);
-        return next;
-      });
-    }
-    setPinModal(prev => ({ ...prev, visible: false }));
-  }, [pinModal]);
-
-  const handlePinCancel = useCallback(() => {
-    setPinModal(prev => ({ ...prev, visible: false }));
-  }, []);
+  const showPinModal = useCallback(
+    (action: "pin" | "unpin", gist: string, target: "overview" | "drift" | "candidate") => {
+      const onConfirm = () => {
+        if (target === "overview") {
+          setUnpinnedOverview(prev => {
+            const next = new Set(prev);
+            if (action === "unpin") next.add(gist);
+            else next.delete(gist);
+            return next;
+          });
+        } else if (target === "drift") {
+          setUnpinnedDrift(prev => {
+            const next = new Set(prev);
+            if (action === "unpin") next.add(gist);
+            else next.delete(gist);
+            return next;
+          });
+        } else if (target === "candidate") {
+          setPinnedCandidates(prev => {
+            const next = new Set(prev);
+            if (action === "pin") next.add(gist);
+            else next.delete(gist);
+            return next;
+          });
+        }
+      };
+      if (action === "pin") pinModal.requestPin(gist, onConfirm);
+      else pinModal.requestUnpin(gist, onConfirm);
+    },
+    [pinModal],
+  );
 
   const handleSort = (setter: React.Dispatch<React.SetStateAction<SortConfig | null>>) => (column: string) => {
     setter(prev => {
@@ -529,9 +520,6 @@ export function PinnedPlansPage(): React.ReactElement {
         .pp-link-mono { font-family: RobotoMono-Medium, Roboto Mono, monospace; font-size: 12px; color: #242A35; white-space: nowrap; text-decoration: none; display: block; max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
         .pp-link-mono:hover { color: #0055ff; text-decoration: underline; }
         .pp-pill-tab:hover { background-color: #f0f2f5; }
-        .pp-pin-modal .crdb-ant-modal-close { top: 24px; right: 24px; }
-        .pp-pin-modal .crdb-ant-modal-header { display: flex; align-items: center; }
-        .pp-pin-modal .crdb-ant-modal-header h3 { font-weight: 600; }
       `}</style>
 
       {/* Tabs */}
@@ -931,21 +919,11 @@ export function PinnedPlansPage(): React.ReactElement {
           </table>
         </div>
       )}
-      <Modal
-        visible={pinModal.visible}
-        onOk={handlePinConfirm}
-        onCancel={handlePinCancel}
-        okText={pinModal.action === "pin" ? "Pin plan" : "Unpin plan"}
-        cancelText="Cancel"
-        title={pinModal.action === "pin" ? "Pin this plan" : "Unpin this plan"}
-        className="pp-pin-modal"
-      >
-        <p style={{ margin: 0, fontSize: "14px", lineHeight: "22px", color: "#394455" }}>
-          {pinModal.action === "pin"
-            ? "Pinning a plan forces the optimizer to use this specific execution plan for the statement. Other potentially better plans will be ignored until this pin is removed."
-            : "Unpinning this plan allows the optimizer to choose the best execution plan automatically. If the optimizer selects a worse plan, you may see a performance regression."}
-        </p>
-      </Modal>
+      <PinPlanModal
+        state={pinModal.state}
+        onConfirm={pinModal.handleConfirm}
+        onCancel={pinModal.handleCancel}
+      />
     </div>
   );
 }

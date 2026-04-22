@@ -39,6 +39,7 @@ import {
   makeExplainPlanColumns,
   PlanHashStats,
 } from "./plansTable";
+import { PinPlanModal, usePinPlanModal } from "../../pinnedPlans/pinPlanModal";
 
 const cx = classNames.bind(styles);
 
@@ -241,7 +242,9 @@ export function PlanDetails({
     }
   }, [plans, location.search, autoSelectedGist]);
 
-  const handlePin = useCallback((gist: string) => {
+  const pinModal = usePinPlanModal();
+
+  const applyPin = useCallback((gist: string) => {
     setPinnedGists(prev => {
       const next = new Set(prev);
       next.add(gist);
@@ -255,7 +258,7 @@ export function PlanDetails({
     }, ...prev]);
   }, []);
 
-  const handleUnpin = useCallback((gist: string) => {
+  const applyUnpin = useCallback((gist: string) => {
     setPinnedGists(prev => {
       const next = new Set(prev);
       next.delete(gist);
@@ -269,6 +272,14 @@ export function PlanDetails({
     }, ...prev]);
   }, []);
 
+  const handlePin = useCallback((gist: string) => {
+    pinModal.requestPin(gist, () => applyPin(gist));
+  }, [pinModal, applyPin]);
+
+  const handleUnpin = useCallback((gist: string) => {
+    pinModal.requestUnpin(gist, () => applyUnpin(gist));
+  }, [pinModal, applyUnpin]);
+
   const handleDetails = (plan: PlanHashStats): void => {
     setPlan(plan);
   };
@@ -276,20 +287,31 @@ export function PlanDetails({
     setPlan(null);
   };
 
+  const modal = (
+    <PinPlanModal
+      state={pinModal.state}
+      onConfirm={pinModal.handleConfirm}
+      onCancel={pinModal.handleCancel}
+    />
+  );
+
   if (plan) {
     return (
-      <ExplainPlan
-        plan={plan}
-        statementFingerprintID={statementFingerprintID}
-        backToPlanTable={backToPlanTable}
-        sortSetting={insightsSortSetting}
-        onChangeSortSetting={setInsightsSortSetting}
-        hasAdminRole={hasAdminRole}
-        pinnedGists={pinnedGists}
-        invalidGists={invalidGists}
-        onPin={handlePin}
-        onUnpin={handleUnpin}
-      />
+      <>
+        <ExplainPlan
+          plan={plan}
+          statementFingerprintID={statementFingerprintID}
+          backToPlanTable={backToPlanTable}
+          sortSetting={insightsSortSetting}
+          onChangeSortSetting={setInsightsSortSetting}
+          hasAdminRole={hasAdminRole}
+          pinnedGists={pinnedGists}
+          invalidGists={invalidGists}
+          onPin={handlePin}
+          onUnpin={handleUnpin}
+        />
+        {modal}
+      </>
     );
   } else {
     return (
@@ -314,6 +336,7 @@ export function PlanDetails({
             onUnpin={handleUnpin}
           />
         </div>
+        {modal}
       </div>
     );
   }

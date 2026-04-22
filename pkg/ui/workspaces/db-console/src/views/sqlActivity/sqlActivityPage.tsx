@@ -23,7 +23,7 @@ export enum SQLActivityTabType {
   Statements = "Statements",
   Sessions = "Sessions",
   Transactions = "Transactions",
-  PinnedPlans = "Pinned plans",
+  PinnedPlans = "Plan pinning",
 }
 
 export const SQL_ACTIVITY_DEFAULT_TAB: SQLActivityTabType =
@@ -72,7 +72,7 @@ const SQLActivityPage = (props: RouteComponentProps) => {
         <TabPane tab="Sessions" key="Sessions">
           <SessionsPageConnected />
         </TabPane>
-        <TabPane tab="Pinned plans" key="Pinned plans">
+        <TabPane tab="Plan pinning" key="Plan pinning">
           <PinnedPlansPage />
         </TabPane>
       </Tabs>
