@@ -53,13 +53,13 @@ cd pkg/ui/workspaces/cluster-ui/src/pinnedPlans && ./start-dev.sh
 
 ### Flow 3: Pin a candidate plan from drift analysis *(out of scope for V1)*
 
-1. On drift analysis tab, find a candidate with "Potential improvement" or "Pin invalid" assessment
+1. On drift analysis tab, find a candidate with "Potential improvement" or "Invalid pin" assessment
 2. Click the pin icon button in the **Candidate plan gist** column
 3. Confirmation modal appears: "Pin this plan" with explanation text
 4. Click "Pin plan" to confirm
 5. "Pinned" badge appears next to the pin button; pin icon fills and turns blue
 
-- **Validation:** Pin button appears in candidate column for "Potential improvement" and "Pin invalid" rows (not for "Regression risk")
+- **Validation:** Pin button appears in candidate column for "Potential improvement" and "Invalid pin" rows (not for "Regression risk")
 - **Validation:** No "Unpinned" badge shown before pinning — just pin button + gist link
 - **Validation:** "Pinned" badge appears only after confirming via modal
 - **Validation:** Hovering assessment badges shows explanatory tooltip
@@ -165,17 +165,17 @@ A table listing every pinned plan across all statement fingerprints.
 
 Surfaces alternative plans the optimizer would have chosen absent pinning.
 
-- [x] **Assessment** column (first column) — color-coded badge with tooltip:
+- [x] **Assessment** column (first column) — color-coded badge (28px tall, matches Pin badge) with tooltip:
   - "Potential improvement" — green (`#e3f5e0` bg, `#237300` text). Tooltip: "The candidate plan has lower latency than the pinned plan. The optimizer may have found a better execution path. Consider testing and pinning the candidate."
   - "Regression risk" — red (`#ffe9eb` bg, `#cd2939` text). Tooltip: "The candidate plan has higher latency than the pinned plan. The pin is protecting against a regression. Investigate why the optimizer prefers a worse plan."
-  - "Pin invalid" — amber (`#fff4e1` bg, `#b26000` text). Tooltip: "Pinned plan invalid due to a schema change. The optimizer fell back to the candidate plan. Pin it to make it the active plan, or unpin to let the optimizer choose freely."
+  - "Invalid pin" — red (`#ffe9eb` bg, `#cd2939` text — matches the "Invalid pin" badge used elsewhere). Tooltip: "Pinned plan is invalid (e.g., schema change). The optimizer fell back to the candidate plan. Pin it to make it the active plan, or unpin to let the optimizer choose freely."
   - Tooltips render via `Tooltip` component, `placement="bottom"`, `max-width: 280px`
 - [x] **Pinned plan gist** column — pin/unpin toggle button + "Pinned"/"Unpinned" badge + gist link
   - Pin button and badge styling matches All Pinned Plans table
   - Clicking pin/unpin opens a **confirmation modal** before toggling state (see 2.5)
   - Links to statement detail explain plan tab
 - [x] **Candidate plan gist** column — pin button + gist link
-  - Pin button appears for "Potential improvement" and "Pin invalid" rows (not for "Regression risk", since pinning a worse plan defeats the safeguard)
+  - Pin button appears for "Potential improvement" and "Invalid pin" rows (not for "Regression risk", since pinning a worse plan defeats the safeguard)
   - "Pinned" badge shown only after pinning; **no "Unpinned" badge** when not pinned (just pin button + gist link)
   - Clicking pin opens a **confirmation modal** before pinning (see 2.5)
   - Links to statement detail explain plan tab
@@ -287,12 +287,10 @@ Pin status column added to the main SQL Activity Statements table.
 | primary-blue-4 | `#0037a5` | Pinned badge text, active pill tab text, overridden count text |
 | primary-blue-alert | `#e1ecff` | Pinned badge background, active pill tab background |
 | neutral-1 | `#f0f2f5` | Unpinned badge background, pill tab hover |
-| danger-bg | `#ffe9eb` | Invalid pin badge background |
-| danger-text | `#cd2939` | Invalid pin badge text |
+| danger-bg | `#ffe9eb` | Invalid pin badge background, Regression risk + Invalid pin assessment background |
+| danger-text | `#cd2939` | Invalid pin badge text, Regression risk + Invalid pin assessment text, positive latency delta |
 | success-bg | `#e3f5e0` | Potential improvement badge background |
 | success-text | `#237300` | Potential improvement badge text, negative latency delta |
-| warning-bg | `#fff4e1` | Pin invalid badge background |
-| warning-text | `#b26000` | Pin invalid badge text |
 
 ### Component Specifications
 

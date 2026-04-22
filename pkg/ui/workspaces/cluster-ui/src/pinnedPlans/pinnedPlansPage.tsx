@@ -716,23 +716,23 @@ export function PinnedPlansPage(): React.ReactElement {
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
-                        padding: "2px 8px",
+                        padding: "0 8px",
                         borderRadius: "3px",
                         fontSize: "12px",
                         fontWeight: 600,
-                        lineHeight: "20px",
+                        height: "28px",
                         whiteSpace: "nowrap",
                         cursor: "default",
                         backgroundColor: drift.assessment === "potential-improvement" ? "#e3f5e0"
-                          : drift.assessment === "pin-invalid" ? "#fff4e1"
+                          : drift.assessment === "pin-invalid" ? "#ffe9eb"
                           : "#ffe9eb",
                         color: drift.assessment === "potential-improvement" ? "#237300"
-                          : drift.assessment === "pin-invalid" ? "#b26000"
+                          : drift.assessment === "pin-invalid" ? "#cd2939"
                           : "#cd2939",
                       }}
                     >
                       {drift.assessment === "potential-improvement" ? "Potential improvement"
-                        : drift.assessment === "pin-invalid" ? "Pin invalid"
+                        : drift.assessment === "pin-invalid" ? "Invalid pin"
                         : "Regression risk"}
                     </span>
                     </Tooltip>
