@@ -249,7 +249,7 @@ const mockDriftAlerts = [
     candidateGist: "AgHeAQIABwIAAAUADAYD",
     wouldHaveExecuted: 18,
     lastWouldHaveExecuted: new Date("2026-03-27T18:30:00"),
-    assessment: "stats-schema-issue" as const,
+    assessment: "pin-invalid" as const,
     latencyDelta: 0.0031,
     pinnedLatency: 0.0026,
     candidateLatency: 0.0057,
@@ -706,8 +706,8 @@ export function PinnedPlansPage(): React.ReactElement {
                         <p style={{ margin: 0, maxWidth: "280px" }}>
                           {drift.assessment === "potential-improvement"
                             ? "The candidate plan has lower latency than the pinned plan. The optimizer may have found a better execution path. Consider testing and pinning the candidate."
-                            : drift.assessment === "stats-schema-issue"
-                            ? "The candidate plan differs due to changes in data distribution, table statistics, or schema (e.g., dropped index). Investigate the root cause — the pinned plan may eventually become invalid."
+                            : drift.assessment === "pin-invalid"
+                            ? "Pinned plan invalid due to a schema change. The optimizer fell back to the candidate plan. Pin it to make it the active plan, or unpin to let the optimizer choose freely."
                             : "The candidate plan has higher latency than the pinned plan. The pin is protecting against a regression. Investigate why the optimizer prefers a worse plan."}
                         </p>
                       }
@@ -724,15 +724,15 @@ export function PinnedPlansPage(): React.ReactElement {
                         whiteSpace: "nowrap",
                         cursor: "default",
                         backgroundColor: drift.assessment === "potential-improvement" ? "#e3f5e0"
-                          : drift.assessment === "stats-schema-issue" ? "#fff4e1"
+                          : drift.assessment === "pin-invalid" ? "#fff4e1"
                           : "#ffe9eb",
                         color: drift.assessment === "potential-improvement" ? "#237300"
-                          : drift.assessment === "stats-schema-issue" ? "#b26000"
+                          : drift.assessment === "pin-invalid" ? "#b26000"
                           : "#cd2939",
                       }}
                     >
                       {drift.assessment === "potential-improvement" ? "Potential improvement"
-                        : drift.assessment === "stats-schema-issue" ? "Stats/schema issue"
+                        : drift.assessment === "pin-invalid" ? "Pin invalid"
                         : "Regression risk"}
                     </span>
                     </Tooltip>
@@ -790,7 +790,7 @@ export function PinnedPlansPage(): React.ReactElement {
                   </td>
                   <td style={tdStyle}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      {drift.assessment === "potential-improvement" && (
+                      {drift.assessment !== "regression-risk" && (
                       <button
                         onClick={() => showPinModal(
                           pinnedCandidates.has(drift.candidateGist) ? "unpin" : "pin",
@@ -817,7 +817,7 @@ export function PinnedPlansPage(): React.ReactElement {
                         </svg>
                       </button>
                       )}
-                      {drift.assessment === "potential-improvement" &&
+                      {drift.assessment !== "regression-risk" &&
                         pinnedCandidates.has(drift.candidateGist) && (
                           <PlanPinBadge status="active" />
                         )}
