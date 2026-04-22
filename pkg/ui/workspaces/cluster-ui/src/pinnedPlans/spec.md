@@ -9,7 +9,7 @@
 | **Prototype Branch** | [`anne/plan-pinning-prototype`](https://github.com/Annebirzin/cockroach/tree/anne/plan-pinning-prototype) |
 | **Source Code** | `pkg/ui/workspaces/cluster-ui/src/pinnedPlans/` |
 | **Target Location** | `pkg/ui/workspaces/cluster-ui/src/` (cluster-ui) + `pkg/ui/workspaces/db-console/src/views/sqlActivity/` |
-| **Date** | 2026-04-09 (updated) |
+| **Date** | 2026-04-22 (updated) |
 
 ### Running the Prototype
 
@@ -23,142 +23,11 @@ cd pkg/ui/workspaces/cluster-ui/src/pinnedPlans && ./start-dev.sh
 
 > **Note:** The prototype uses hardcoded mock data for all pinning state.
 
----
-
-## 1. Feature Specifications
-
-This section documents what's implemented in the prototype. All features below are functional in the prototype with mock data.
-
-### 1.1 Pinned Plans Tab (SQL Activity)
-
-A new **"Pinned plans"** tab added to the SQL Activity page alongside Statements, Transactions, and Sessions.
-
-- [x] Tab appears as the 4th tab in SQL Activity, labeled "Plan pinning" (sentence case)
-- [x] Tab uses the same Ant Design `Tabs` component as the parent SQL Activity tabs
-- [x] Three pill-style sub-tabs within: **All pinned plans**, **Drift analysis**, **Audit log**
-- [x] Pill sub-tabs use rounded style (`border-radius: 20px`) to visually distinguish from parent underline tabs
-- [x] Drift analysis pill tab shows a count badge (blue circle) when alerts exist
-
-### 1.2 All Pinned Plans Table
-
-A table listing every pinned plan across all statement fingerprints.
-
-- [x] **Plan pin status** column (first column) — icon-only pin/unpin toggle button + status badge
-  - Pin button: 14px pin SVG icon, `6px` padding, `1px solid #c0c6d9` border, `4px` border-radius
-  - Pin button color: `#0055ff` (blue) when pinned, `#394455` (grey) when unpinned
-  - Pin icon: filled when pinned, outline when unpinned
-  - Badge states: "Pinned" (blue), "Invalid pin" (red), "Unpinned" (grey)
-  - Clicking pin/unpin opens a **confirmation modal** before toggling state
-- [x] **Plan gist** column — truncated to 24 chars with tooltip showing full gist
-  - Links to statement detail explain plan tab (`?tab=explain-plan&appNames=<app>`)
-- [x] **Statement** column — monospace font, truncated with ellipsis at `max-width: 250px`
-  - Links to statement detail overview (`?appNames=<app>`)
-- [x] **Pinned by** column — username who created the pin
-- [x] **Pinned at** column — date formatted as "MMM D, YYYY"
-- [x] **Executions** column — right-aligned, locale-formatted number
-- [x] **Overridden** column — right-aligned, blue text (`#0037a5`) when > 0
-  - Count of executions where optimizer would have chosen a different plan
-- [x] **Avg latency** column — right-aligned, formatted as duration (us/ms/s)
-- [x] **Last executed** column — right-aligned, "MMM D HH:MM AM/PM"
-- [x] All columns sortable (ascending/descending toggle with arrow indicators)
-- [x] Row count display: "1-N of N pinned plans"
-
-### 1.3 Drift Analysis Table
-
-> **Note:** The Drift Analysis tab may be out of scope for V1.
-
-Surfaces alternative plans the optimizer would have chosen absent pinning.
-
-- [x] **Assessment** column (first column) — color-coded badge with tooltip:
-  - "Potential improvement" — green (`#e3f5e0` bg, `#237300` text)
-  - "Regression risk" — red (`#ffe9eb` bg, `#cd2939` text)
-  - "Stats/schema issue" — amber (`#fff4e1` bg, `#b26000` text)
-  - Tooltips explain each assessment type on hover (via `Tooltip` component, `placement="bottom"`, `max-width: 280px`)
-- [x] **Pinned plan gist** column — pin/unpin toggle button + "Pinned"/"Unpinned" badge + gist link
-  - Pin button and badge styling matches All Pinned Plans table
-  - Clicking pin/unpin opens a **confirmation modal** before toggling state
-  - Links to statement detail explain plan tab
-- [x] **Candidate plan gist** column — pin button (potential improvement rows only) + gist link
-  - Pin button only appears for "Potential improvement" assessment rows
-  - "Pinned" badge shown only after pinning; **no "Unpinned" badge** when not pinned (just pin button + gist link)
-  - Clicking pin opens a **confirmation modal** before pinning
-  - Links to statement detail explain plan tab
-- [x] **Statement** column — monospace, links to statement detail
-- [x] **Pinned latency** / **Candidate latency** columns — right-aligned duration
-- [x] **Latency delta** column — green for negative (improvement), red for positive (regression), bold
-- [x] **Would-have-executed** column — count of times optimizer would have picked this plan
-- [x] **Last would-have-executed** column — timestamp
-- [x] **Action** column — "Test plan" button (secondary style), only shown for "Potential improvement" rows (**TBD** — functionality and scope still to be determined)
-- [x] All columns sortable
-- [x] Row count display: "1-N of N drift alerts"
-
-### 1.4 Audit Log Table
-
-History of all pin/unpin actions for governance and compliance.
-
-- [x] **Action** column — badge showing "Pinned" (blue) or "Unpinned" (grey)
-- [x] **Plan gist** column — clickable, links to explain plan tab
-- [x] **Statement** column — monospace, clickable, links to statement detail
-- [x] **User** column — username who performed the action
-- [x] **Timestamp** column — "MMM D, YYYY HH:MM AM/PM"
-- [x] All columns sortable
-- [x] Row count display: "1-N of N audit log entries"
-
-### 1.5 Pin/Unpin Confirmation Modal
-
-All pin and unpin actions across the Pinned Plans page require confirmation via a modal dialog.
-
-- [x] Uses the production `Modal` component from cluster-ui
-- [x] **Pin modal**: Title "Pin this plan", body explains pinning forces the optimizer to use the specific plan
-- [x] **Unpin modal**: Title "Unpin this plan", body explains unpinning allows optimizer to choose automatically
-- [x] Action buttons: "Cancel" (secondary) and "Pin plan" / "Unpin plan" (primary)
-- [x] Modal class: `pp-pin-modal` with custom close button positioning (`top: 24px`, `right: 24px`)
-- [x] Three pin targets tracked: `overview` (All Pinned Plans), `drift` (Pinned plan gist), `candidate` (Candidate plan gist)
-
-### 1.6 Statement Fingerprint Detail Page
-
-Pin status integrated into the existing statement detail page.
-
-- [x] **Plan pin status** row in right summary card (positioned above "Failure count")
-  - Shows aggregated badges with counts: "Pinned (2)", "Invalid pin (1)"
-  - Badges always include count even when count is 1
-  - Badge font weight: 400 (lighter than table badges)
-  - Only appears for statements that have pinned plans
-
-### 1.7 Explain Plan Table (Plan Details)
-
-Pin status column added to the plan gist table within statement details.
-
-- [x] **Plan pin status** column (first column) — icon-only pin/unpin button + badge
-  - Same styling as Pinned Plans page pin column
-  - Badge font weight: 600 (matches table context)
-  - Badge height: 28px (matches pin button height)
-  - Shows all three states: Pinned, Unpinned, Invalid pin
-- [x] Pin/unpin actions update state locally with audit log tracking
-- [x] Mock plans injected per fingerprint (2-3 plan gists per statement) via `MOCK_PIN_CONFIG`
-
-### 1.8 Explain Plan Detail View
-
-Pin status shown when viewing a single plan's explain plan.
-
-- [x] Pin/unpin button + status badge in top-right corner (opposite "All Plans" back button)
-- [x] Badge font weight: 400 (non-table context)
-- [x] Badge height: 28px
-- [x] Shows all three states: Pinned, Unpinned, Invalid pin
-
-### 1.9 Statements List Table
-
-Pin status column added to the main SQL Activity Statements table.
-
-- [x] **Plan pin status** column — aggregated badges with counts
-  - "Pinned (2)" blue badge, "Invalid pin (1)" red badge
-  - Badge height: 24px
-  - Shows em-dash (—) for statements without pinned plans
-- [x] Column sortable (pinned statements sort above unpinned)
+> **V1 Scope:** **Drift Analysis is out of scope for V1.** All sections and flows referencing drift analysis (the Drift analysis sub-tab, Flow 2, Flow 3, and §2.3) are documented here for completeness and future iteration but should not be implemented in the V1 release.
 
 ---
 
-## 2. User Flows & Testing
+## 1. User Flows & Testing
 
 ### Flow 1: View all pinned plans across the cluster
 
@@ -171,7 +40,7 @@ Pin status column added to the main SQL Activity Statements table.
 - **Validation:** Clicking a plan gist navigates to the statement detail explain plan tab
 - **Validation:** Clicking a statement navigates to the statement detail overview
 
-### Flow 2: Identify and assess plan drift
+### Flow 2: Identify and assess plan drift *(out of scope for V1)*
 
 1. Click **Drift analysis** sub-tab (pill tab with count badge)
 2. Review candidate plans the optimizer would have chosen
@@ -182,7 +51,7 @@ Pin status column added to the main SQL Activity Statements table.
 - **Validation:** Red latency delta indicates candidate is slower (regression risk)
 - **Validation:** "Would-have-executed" count shows frequency of drift
 
-### Flow 3: Pin a candidate plan from drift analysis
+### Flow 3: Pin a candidate plan from drift analysis *(out of scope for V1)*
 
 1. On drift analysis tab, find a candidate with "Potential improvement" assessment
 2. Click the pin icon button in the **Candidate plan gist** column
@@ -240,10 +109,153 @@ Pin status column added to the main SQL Activity Statements table.
 1. On statement detail, click **Explain plans** tab
 2. Plan table shows "Plan pin status" as first column
 3. Click pin icon to toggle pin state
-4. Badge updates: Pinned (blue), Unpinned (grey), or Invalid pin (red)
+4. Confirmation modal appears: "Pin this plan" or "Unpin this plan" with explanation text
+5. Click "Pin plan" / "Unpin plan" to confirm
+6. Badge updates: Pinned (blue), Unpinned (grey), or Invalid pin (red)
+7. Audit log entry recorded only after confirmation
 
+- **Validation:** Cancelling the modal leaves pin state unchanged and writes no audit entry
 - **Validation:** Pin state persists while navigating between plan table and plan detail views
 - **Validation:** Clicking into a plan detail view shows matching pin status
+- **Validation:** Pin/unpin from the plan detail view (top-right button) also opens the same confirmation modal
+
+---
+
+## 2. Feature Specifications
+
+This section documents what's implemented in the prototype. All features below are functional in the prototype with mock data.
+
+### 2.1 Pinned Plans Tab (SQL Activity)
+
+A new **"Pinned plans"** tab added to the SQL Activity page alongside Statements, Transactions, and Sessions.
+
+- [x] Tab appears as the 4th tab in SQL Activity, labeled "Plan pinning" (sentence case)
+- [x] Tab uses the same Ant Design `Tabs` component as the parent SQL Activity tabs
+- [x] Three pill-style sub-tabs within: **All pinned plans**, **Drift analysis** *(out of scope for V1)*, **Audit log**
+- [x] Pill sub-tabs use rounded style (`border-radius: 20px`) to visually distinguish from parent underline tabs
+- [x] Drift analysis pill tab shows a count badge (blue circle) when alerts exist *(out of scope for V1)*
+
+### 2.2 All Pinned Plans Table
+
+A table listing every pinned plan across all statement fingerprints.
+
+- [x] **Plan pin status** column (first column) — icon-only pin/unpin toggle button + status badge
+  - Pin button: 14px pin SVG icon, `6px` padding, `1px solid #c0c6d9` border, `4px` border-radius
+  - Pin button color: `#0055ff` (blue) when pinned, `#394455` (grey) when unpinned
+  - Pin icon: filled when pinned, outline when unpinned
+  - Badge states: "Pinned" (blue), "Invalid pin" (red), "Unpinned" (grey)
+  - Clicking pin/unpin opens a **confirmation modal** before toggling state (see 2.5)
+- [x] **Plan gist** column — truncated to 24 chars with tooltip showing full gist
+  - Links to statement detail explain plan tab (`?tab=explain-plan&appNames=<app>`)
+- [x] **Statement** column — monospace font, truncated with ellipsis at `max-width: 250px`
+  - Links to statement detail overview (`?appNames=<app>`)
+- [x] **Pinned by** column — username who created the pin
+- [x] **Pinned at** column — date formatted as "MMM D, YYYY"
+- [x] **Executions** column — right-aligned, locale-formatted number
+- [x] **Overridden** column — right-aligned, blue text (`#0037a5`) when > 0
+  - Count of executions where optimizer would have chosen a different plan
+- [x] **Avg latency** column — right-aligned, formatted as duration (us/ms/s)
+- [x] **Last executed** column — right-aligned, "MMM D HH:MM AM/PM"
+- [x] All columns sortable (ascending/descending toggle with arrow indicators)
+- [x] Row count display: "1-N of N pinned plans"
+
+### 2.3 Drift Analysis Table *(out of scope for V1)*
+
+> **V1 Scope:** This entire section is **out of scope for V1**. Documented for future iteration; do not implement in the V1 release.
+
+Surfaces alternative plans the optimizer would have chosen absent pinning.
+
+- [x] **Assessment** column (first column) — color-coded badge with tooltip:
+  - "Potential improvement" — green (`#e3f5e0` bg, `#237300` text)
+  - "Regression risk" — red (`#ffe9eb` bg, `#cd2939` text)
+  - "Stats/schema issue" — amber (`#fff4e1` bg, `#b26000` text)
+  - Tooltips explain each assessment type on hover (via `Tooltip` component, `placement="bottom"`, `max-width: 280px`)
+- [x] **Pinned plan gist** column — pin/unpin toggle button + "Pinned"/"Unpinned" badge + gist link
+  - Pin button and badge styling matches All Pinned Plans table
+  - Clicking pin/unpin opens a **confirmation modal** before toggling state (see 2.5)
+  - Links to statement detail explain plan tab
+- [x] **Candidate plan gist** column — pin button (potential improvement rows only) + gist link
+  - Pin button only appears for "Potential improvement" assessment rows
+  - "Pinned" badge shown only after pinning; **no "Unpinned" badge** when not pinned (just pin button + gist link)
+  - Clicking pin opens a **confirmation modal** before pinning (see 2.5)
+  - Links to statement detail explain plan tab
+- [x] **Statement** column — monospace, links to statement detail
+- [x] **Pinned latency** / **Candidate latency** columns — right-aligned duration
+- [x] **Latency delta** column — green for negative (improvement), red for positive (regression), bold
+- [x] **Would-have-executed** column — count of times optimizer would have picked this plan
+- [x] **Last would-have-executed** column — timestamp
+- [x] **Action** column — "Test plan" button (secondary style), only shown for "Potential improvement" rows (**TBD** — functionality and scope still to be determined)
+- [x] All columns sortable
+- [x] Row count display: "1-N of N drift alerts"
+
+### 2.4 Audit Log Table
+
+History of all pin/unpin actions for governance and compliance.
+
+- [x] **Action** column — badge showing "Pinned" (blue) or "Unpinned" (grey)
+- [x] **Plan gist** column — clickable, links to explain plan tab
+- [x] **Statement** column — monospace, clickable, links to statement detail
+- [x] **User** column — username who performed the action
+- [x] **Timestamp** column — "MMM D, YYYY HH:MM AM/PM"
+- [x] All columns sortable
+- [x] Row count display: "1-N of N audit log entries"
+
+### 2.5 Pin/Unpin Confirmation Modal
+
+All pin and unpin actions across the prototype — Pinned Plans page, Explain Plan table, and Explain Plan detail view — require confirmation via a shared modal dialog.
+
+- [x] Implemented as a shared component `PinPlanModal` + `usePinPlanModal()` hook in `cluster-ui/src/pinnedPlans/pinPlanModal.tsx`
+- [x] Any surface with a pin/unpin button calls `requestPin(gist, onConfirm)` or `requestUnpin(gist, onConfirm)`; the side-effect (state mutation, audit log entry) only fires after the user confirms
+- [x] Uses the production `Modal` component from cluster-ui
+- [x] **Pin modal**: Title "Pin this plan", body explains pinning forces the optimizer to use the specific plan
+- [x] **Unpin modal**: Title "Unpin this plan", body explains unpinning allows optimizer to choose automatically
+- [x] Action buttons: "Cancel" (secondary) and "Pin plan" / "Unpin plan" (primary)
+- [x] Modal class: `pp-pin-modal` with custom close button positioning (`top: 16px`, `right: 16px`) and 40×40 click target
+- [x] Cancelling closes the modal with no state change and writes no audit entry
+- [x] Pin targets covered: Pinned Plans page (`overview`; `drift` and `candidate` *out of scope for V1*), Explain Plans table, Explain Plan detail view
+
+### 2.6 Statement Fingerprint Detail Page
+
+Pin status integrated into the existing statement detail page.
+
+- [x] **Plan pin status** row in right summary card (positioned above "Failure count")
+  - Shows aggregated badges with counts: "Pinned (2)", "Invalid pin (1)"
+  - Badges always include count even when count is 1
+  - Badge font weight: 400 (lighter than table badges)
+  - Only appears for statements that have pinned plans
+
+### 2.7 Explain Plan Table (Plan Details)
+
+Pin status column added to the plan gist table within statement details.
+
+- [x] **Plan pin status** column (first column) — icon-only pin/unpin button + badge
+  - Same styling as Pinned Plans page pin column
+  - Badge font weight: 600 (matches table context)
+  - Badge height: 28px (matches pin button height)
+  - Shows all three states: Pinned, Unpinned, Invalid pin
+- [x] Clicking pin/unpin opens the shared **confirmation modal** (see 2.5) before applying the change
+- [x] Audit log entry written only after the user confirms in the modal
+- [x] Mock plans injected per fingerprint (2-3 plan gists per statement) via `MOCK_PIN_CONFIG`
+
+### 2.8 Explain Plan Detail View
+
+Pin status shown when viewing a single plan's explain plan.
+
+- [x] Pin/unpin button + status badge in top-right corner (opposite "All Plans" back button)
+- [x] Badge font weight: 400 (non-table context)
+- [x] Badge height: 28px
+- [x] Shows all three states: Pinned, Unpinned, Invalid pin
+- [x] Clicking pin/unpin opens the shared **confirmation modal** (see 2.5) before applying the change
+
+### 2.9 Statements List Table
+
+Pin status column added to the main SQL Activity Statements table.
+
+- [x] **Plan pin status** column — aggregated badges with counts
+  - "Pinned (2)" blue badge, "Invalid pin (1)" red badge
+  - Badge height: 24px
+  - Shows em-dash (—) for statements without pinned plans
+- [x] Column sortable (pinned statements sort above unpinned)
 
 ---
 
@@ -294,7 +306,7 @@ Pin status column added to the main SQL Activity Statements table.
 | Pill tab | auto | `6px 16px` | `20px` | Transition: `all 0.15s ease` |
 | Drift count badge | `18px` | — | `50%` (circle) | `11px` font, always blue, `top: -1px` for centering |
 | Test plan button | auto | `4px 8px` | `4px` | `1px solid #c0c6d9`, font weight 600 |
-| Confirmation modal | auto | `24px` | default | Uses production `Modal` component, class `pp-pin-modal` |
+| Confirmation modal | auto | `24px` | default | Uses production `Modal` component, class `pp-pin-modal`. Close X positioned `top: 16px, right: 16px` with 40×40 click target |
 | Table row | `70px` | — | — | `1px solid #d6dbe7` bottom border |
 
 ### Icons
@@ -320,5 +332,3 @@ Pin status column added to the main SQL Activity Statements table.
 - Monospace links: `#242A35` → `#0055ff` + underline on hover
 - Pill tabs (unselected): background `#f0f2f5` on hover
 - Pin button: standard cursor pointer (no explicit hover style)
-
-
