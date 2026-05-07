@@ -724,7 +724,7 @@ export function PinnedPlansPage(): React.ReactElement {
                     const total = mockTotalExecutions[plan.fingerprintID] ?? plan.executions;
                     return (
                       <>
-                        <span>{plan.coverage}%</span>
+                        <span style={{ fontWeight: 600 }}>{plan.coverage}%</span>
                         <span style={{ color: plan.coverage === 0 ? "#cd2939" : "#7e89a9" }}>
                           {" "}({abbrev(plan.executions)} of {abbrev(total)})
                         </span>
@@ -740,7 +740,7 @@ export function PinnedPlansPage(): React.ReactElement {
                       const rate = Math.round((plan.overridden / plan.executions) * 100);
                       return (
                         <>
-                          <span>{rate}%</span>
+                          <span style={{ fontWeight: 600 }}>{rate}%</span>
                           <span style={{ color: "#7e89a9" }}>
                             {" "}({abbrev(plan.overridden)} of {abbrev(plan.executions)})
                           </span>

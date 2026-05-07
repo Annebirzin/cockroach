@@ -411,10 +411,9 @@ export function makeExplainPlanColumns(
               borderRadius: broken ? "3px" : 0,
               backgroundColor: broken ? "#ffe9eb" : undefined,
               color: broken ? "#cd2939" : "#394455",
-              fontWeight: broken ? 600 : 400,
             }}
           >
-            {cov}%
+            <span style={{ fontWeight: 600 }}>{cov}%</span>
             {totalExecs > 0 && (
               <span style={{ color: broken ? "#cd2939" : "#7e89a9", fontWeight: 400 }}>
                 {" "}({fmt(planExecs)} of {fmt(totalExecs)})
