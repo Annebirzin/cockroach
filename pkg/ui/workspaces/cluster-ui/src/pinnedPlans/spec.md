@@ -163,13 +163,13 @@ A table listing every pinned plan across all statement fingerprints.
   - **1%–99%** = pin sticks for some executions; the optimizer falls back to a different plan for the rest (the "partial coverage" case)
   - **0%** = pin is not being used at all (subsumes the previous "Invalid pin" signal — captures schema changes, plan no longer applicable for current parameter shapes, etc., without requiring a category definition)
   - **0% styling**: cell background `#ffe9eb`, percentage and parenthetical both in `#cd2939` weight 600
-  - Other rows: percentage in default text (`#394455`), `(X of Y)` parenthetical in subtle grey (`#7e89a9`) as supporting detail
+  - Other rows: **percentage** in default text (`#394455`) weight 600 (SemiBold), `(X of Y)` parenthetical in subtle grey (`#7e89a9`) weight 400 as supporting detail
   - **Header tooltip**: dashed underline + hover popover (standard cluster-ui `Tooltip style="tableTitle"` pattern); explains the metric and the 0% failure case
 - [x] **Override rate** column — left-aligned, formatted as `N% (X of Y)`. Counts in the parenthetical are abbreviated to `k`/`M` when ≥ 10,000
   - Defined as `overridden ÷ executions × 100`, rounded to nearest integer
   - X = executions where the optimizer would have chosen a different plan but the pin forced this one (the count of "active" overrides)
   - Y = total executions of this pinned plan
-  - **Percentage** rendered in default text color (`#394455`) weight 400 — no blue/bold emphasis (the rate value itself carries the signal). The `(X of Y)` parenthetical is rendered in subtle grey (`#7e89a9`) as supporting detail
+  - **Percentage** rendered in default text color (`#394455`) weight 600 (SemiBold) — bolded so the rate is the at-a-glance signal. The `(X of Y)` parenthetical is rendered in subtle grey (`#7e89a9`) weight 400 as supporting detail
   - Renders em-dash (`—`) in `#c0c6d9` when Y = 0 (no executions of this pinned plan; rate is undefined)
   - Sort key is the rate itself; rows with no executions sort to the bottom regardless of direction
   - **Header tooltip**: dashed underline + hover popover (standard cluster-ui `Tooltip style="tableTitle"` pattern); explains higher rate = pin is doing work, 0% = pin is redundant
