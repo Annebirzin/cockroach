@@ -376,7 +376,7 @@ export function makeExplainPlanColumns(
           placement="bottom"
           content={
             <span style={{ fontWeight: 400 }}>
-              Percentage of fingerprint executions where the optimizer used this pinned plan. 0% means the pin isn't sticking — the optimizer is choosing a different plan every time.
+              Percentage of fingerprint executions where the optimizer used this pinned plan. 0% means the pin isn't sticking. The optimizer is choosing a different plan every time.
             </span>
           }
         >

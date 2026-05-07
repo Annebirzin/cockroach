@@ -617,7 +617,7 @@ export function PinnedPlansPage(): React.ReactElement {
                 onSort={handleSort(setOverviewSort)}
                 tooltip={
                   <span style={{ fontWeight: 400 }}>
-                    Percentage of fingerprint executions where the optimizer used this pinned plan. 0% means the pin isn't sticking — the optimizer is choosing a different plan every time.
+                    Percentage of fingerprint executions where the optimizer used this pinned plan. 0% means the pin isn't sticking. The optimizer is choosing a different plan every time.
                   </span>
                 }
               />
@@ -628,7 +628,7 @@ export function PinnedPlansPage(): React.ReactElement {
                 onSort={handleSort(setOverviewSort)}
                 tooltip={
                   <span style={{ fontWeight: 400 }}>
-                    Percentage of pinned-plan executions where the pin overrode the optimizer's choice. Higher means the pin is actively protecting against drift; 0% means the optimizer would have picked this plan anyway (the pin is redundant).
+                    Percentage of pinned-plan executions where the pin overrode the optimizer's choice. Higher means the pin is actively protecting against drift. 0% means the optimizer would have picked this plan anyway (the pin is redundant).
                   </span>
                 }
               />
