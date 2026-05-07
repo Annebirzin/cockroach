@@ -165,6 +165,7 @@ A table listing every pinned plan across all statement fingerprints.
   - **1%–99%** = pin sticks for some executions; the optimizer falls back to a different plan for the rest (the "partial coverage" case)
   - **0%** = pin is not being used at all (subsumes the previous "Invalid pin" signal — captures schema changes, plan no longer applicable for current parameter shapes, etc., without requiring a category definition)
   - **0% styling**: cell background `#ffe9eb`, percentage and parenthetical both in `#cd2939` weight 600
+  - **0% cell tooltip**: hovering a 0% cell shows a popover ("This pinned plan is not being used. The optimizer is choosing a different plan for every execution.") with `cursor: help`. Other (non-zero) cells have no cell-level tooltip.
   - Other rows: **percentage** in default text (`#394455`) weight 600 (SemiBold), `(X of Y)` parenthetical in subtle grey (`#7e89a9`) weight 400 as supporting detail
   - **Header tooltip**: dashed underline + hover popover (standard cluster-ui `Tooltip style="tableTitle"` pattern); explains the metric and the 0% failure case
 - [x] **Override rate** column — left-aligned, formatted as `N% (X of Y)`. Counts in the parenthetical are abbreviated to `k`/`M` when ≥ 10,000

@@ -402,7 +402,7 @@ export function makeExplainPlanColumns(
             : n < 10000000
             ? `${(n / 1000000).toFixed(1)}M`
             : `${Math.round(n / 1000000)}M`;
-        return (
+        const inner = (
           <span
             style={{
               display: "inline-block",
@@ -411,6 +411,7 @@ export function makeExplainPlanColumns(
               borderRadius: broken ? "3px" : 0,
               backgroundColor: broken ? "#ffe9eb" : undefined,
               color: broken ? "#cd2939" : "#394455",
+              cursor: broken ? "help" : "default",
             }}
           >
             <span style={{ fontWeight: 600 }}>{cov}%</span>
@@ -421,6 +422,22 @@ export function makeExplainPlanColumns(
             )}
           </span>
         );
+        // Wrap the 0% cell in a Tooltip to explain the broken state.
+        if (broken) {
+          return (
+            <Tooltip
+              placement="top"
+              content={
+                <span style={{ fontSize: "14px", fontWeight: 400 }}>
+                  This pinned plan is not being used. The optimizer is choosing a different plan for every execution.
+                </span>
+              }
+            >
+              {inner}
+            </Tooltip>
+          );
+        }
+        return inner;
       },
       sort: (item: PlanHashStats) => {
         const gist = item.stats.plan_gists?.[0] || "";

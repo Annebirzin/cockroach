@@ -722,7 +722,7 @@ export function PinnedPlansPage(): React.ReactElement {
                 >
                   {(() => {
                     const total = mockTotalExecutions[plan.fingerprintID] ?? plan.executions;
-                    return (
+                    const inner = (
                       <>
                         <span style={{ fontWeight: 600 }}>{plan.coverage}%</span>
                         <span style={{ color: plan.coverage === 0 ? "#cd2939" : "#7e89a9" }}>
@@ -730,6 +730,23 @@ export function PinnedPlansPage(): React.ReactElement {
                         </span>
                       </>
                     );
+                    // Wrap the 0% cell in a Tooltip to explain the broken state.
+                    // Other cells render plain.
+                    if (plan.coverage === 0) {
+                      return (
+                        <Tooltip
+                          placement="top"
+                          content={
+                            <span style={{ fontSize: "14px", fontWeight: 400 }}>
+                              This pinned plan is not being used. The optimizer is choosing a different plan for every execution.
+                            </span>
+                          }
+                        >
+                          <span style={{ display: "inline-block", cursor: "help" }}>{inner}</span>
+                        </Tooltip>
+                      );
+                    }
+                    return inner;
                   })()}
                 </td>
                 <td style={{ ...tdStyle, whiteSpace: "nowrap", color: "#394455" }}>
