@@ -200,7 +200,7 @@ export function makeStatementsColumns(
       cell: (stmt: AggregateStatistics) => {
         // Mock pinned fingerprint IDs matching pinnedPlansPage.tsx.
         // pinned = total pinned plans for this fingerprint;
-        // broken = number with Coverage 0% (pin isn't being used at all).
+        // broken = number with Pin applied 0% (pin isn't being used at all).
         const PINNED_IDS: Record<string, { pinned: number; broken: number }> = {
           "5193222733586324267": { pinned: 2, broken: 0 },
           "7562955041576980258": { pinned: 2, broken: 1 },
@@ -214,51 +214,46 @@ export function makeStatementsColumns(
             <span style={{ color: "#c0c6d9", fontSize: "13px" }}>—</span>
           );
         }
-        const pinnedBadge: React.CSSProperties = {
-          display: "inline-flex",
-          alignItems: "center",
-          padding: "0 8px",
-          borderRadius: "3px",
-          fontSize: "12px",
-          fontWeight: 600,
-          height: "24px",
-          whiteSpace: "nowrap",
-          backgroundColor: "#e1ecff",
-          color: "#0037a5",
-        };
-        const brokenStyle: React.CSSProperties = {
-          fontSize: "12px",
-          fontWeight: 600,
-          color: "#cd2939",
-          cursor: "help",
-        };
+        // Compact icon + count. Red when any pin has Pin applied 0%
+        // (broken). Hover surfaces the breakdown; click into the statement
+        // to investigate on the Explain plans tab.
+        const broken = pinData.broken > 0;
+        const color = broken ? "#cd2939" : "#0037a5";
+        const tooltip = broken
+          ? `${pinData.pinned} pinned plan${pinData.pinned > 1 ? "s" : ""}, ${pinData.broken} not in use. Click into the statement to investigate.`
+          : `${pinData.pinned} pinned plan${pinData.pinned > 1 ? "s" : ""}`;
         return (
-          <span style={{ display: "inline-flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
-            {pinData.pinned > 0 && (
-              <span style={pinnedBadge}>
-                Pinned ({pinData.pinned})
-              </span>
-            )}
-            {pinData.broken > 0 && (
-              <span
-                style={brokenStyle}
-                title={`${pinData.broken} pinned plan${pinData.broken > 1 ? "s are" : " is"} not being used (Coverage 0%). Open the statement to investigate.`}
-              >
-                {pinData.broken} not in use
-              </span>
-            )}
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              color,
+              fontSize: "13px",
+              fontWeight: 600,
+              cursor: "help",
+            }}
+            title={tooltip}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 17v5" />
+              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor" />
+            </svg>
+            {pinData.pinned}
           </span>
         );
       },
       sort: (stmt: AggregateStatistics) => {
-        const PINNED_IDS = new Set([
-          "5193222733586324267",
-          "7562955041576980258",
-          "3350546850174482743",
-          "7442192024002430332",
-          "3939633309730011619",
-        ]);
-        return PINNED_IDS.has(stmt.aggregatedFingerprintID) ? 1 : 0;
+        // Broken (any pin at 0% Pin applied) > healthy pinned > unpinned.
+        // Surfaces problem rows at the top of the column when sorted desc.
+        const STATUS: Record<string, number> = {
+          "5193222733586324267": 1,  // pinned, healthy
+          "7562955041576980258": 2,  // pinned, 1 broken
+          "3350546850174482743": 2,  // pinned, 1 broken
+          "7442192024002430332": 1,  // pinned, healthy
+          "3939633309730011619": 1,  // pinned, healthy
+        };
+        return STATUS[stmt.aggregatedFingerprintID] ?? 0;
       },
     },
     {

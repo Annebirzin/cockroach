@@ -89,24 +89,26 @@ cd pkg/ui/workspaces/cluster-ui/src/pinnedPlans && ./start-dev.sh
 
 1. Navigate to **SQL Activity → Statements** tab
 2. Locate the **Plan pin status** column
-3. Statements with pinned plans show a "Pinned (N)" badge
-4. If any of those pinned plans have **Pin applied 0%** (the optimizer is not actually using them), the cell also shows red "N not in use" inline next to the badge
-5. Statements without pins show em-dash (—)
+3. Statements with pinned plans show a compact pin icon + count (e.g. `📌 2`) in **blue** (`#0037a5`)
+4. If any of those pinned plans have **Pin applied 0%** (the optimizer is not actually using them), the entire indicator (icon + count) renders in **red** (`#cd2939`)
+5. Hovering the indicator shows a tooltip with the breakdown ("2 pinned plans, 1 not in use. Click into the statement to investigate.")
+6. Statements without pins show em-dash (—)
 
-- **Validation:** "Pinned (N)" count matches the total number of pinned plans for that fingerprint
-- **Validation:** "N not in use" count matches the number of pinned plans whose Pin applied is 0%
-- **Validation:** Hovering "N not in use" shows an explanatory tooltip pointing the user to the Explain plans tab
-- **Validation:** Clicking into a statement with pins shows pin status in the summary card
+- **Validation:** Count matches the total number of pinned plans for that fingerprint
+- **Validation:** Indicator turns red when at least one pinned plan has Pin applied 0%
+- **Validation:** Sort order: broken pins (red) > healthy pins (blue) > unpinned, so problem rows surface at the top
+- **Validation:** Clicking into a statement with pins shows the same pin indicator in the summary card
 
 ### Flow 7: View pin status on statement detail page
 
 1. Click into a statement fingerprint from the Statements table
 2. In the right summary card, find "Plan pin status" row (above Failure count)
-3. Row shows a "Pinned (N)" badge plus, when applicable, red "N not in use" inline indicating how many pinned plans have Pin applied 0%
+3. Row shows the same compact pin icon + count, blue normally and red when any pinned plan has Pin applied 0%
 
-- **Validation:** "Pinned (N)" count matches the explain plan table's pin column
-- **Validation:** "N not in use" count matches the number of plans with Pin applied 0% on the Explain plans tab
-- **Validation:** Click "Explain plans" tab to see per-plan pin status and coverage
+- **Validation:** Count matches the explain plan table's pin column
+- **Validation:** Red coloring matches the count of plans with Pin applied 0% on the Explain plans tab
+- **Validation:** Tooltip directs the user to the Explain plans tab
+- **Validation:** Click "Explain plans" tab to see per-plan pin status and Pin applied %
 
 ### Flow 8: Pin/unpin plans from the explain plan table
 
@@ -239,10 +241,10 @@ All pin and unpin actions across the prototype — Pinned Plans page, Explain Pl
 Pin status integrated into the existing statement detail page.
 
 - [x] **Plan pin status** row in right summary card (positioned above "Failure count")
-  - Shows a "Pinned (N)" blue badge (count always included, even at N=1)
-  - When any of those pinned plans have **Pin applied 0%**, the row also shows red "N not in use" inline next to the badge
-  - "N not in use" has a `cursor: help` tooltip directing the user to the Explain plans tab to investigate
-  - Badge font weight: 400 (lighter than table badges)
+  - Compact pin icon (14px filled SVG) + numeric count
+  - Color: `#0037a5` (blue) when all pinned plans are healthy; `#cd2939` (red) when any pinned plan has **Pin applied 0%**
+  - Font: 13px / weight 600
+  - `cursor: help` with tooltip: "N pinned plans" or "N pinned plans, M not in use. Open the Explain plans tab to investigate."
   - Only appears for statements that have pinned plans
 
 ### 2.7 Explain Plan Table (Plan Details)
@@ -282,11 +284,13 @@ Pin status shown when viewing a single plan's explain plan.
 
 Pin status column added to the main SQL Activity Statements table.
 
-- [x] **Plan pin status** column — "Pinned (N)" blue badge plus optional "N not in use" red text
-  - Blue badge: `Pinned (N)`, height 24px, weight 600
-  - Red inline text: `N not in use`, weight 600, `cursor: help` tooltip explains 0% Pin applied
+- [x] **Plan pin status** column — compact pin icon + numeric count, color-coded by health
+  - Pin icon: 14px filled SVG (matches the pin button used elsewhere in the prototype)
+  - Color: `#0037a5` (blue) when all pinned plans are healthy; `#cd2939` (red) when any pinned plan has **Pin applied 0%**
+  - Font: 13px / weight 600
+  - `cursor: help` with tooltip surfacing the breakdown ("2 pinned plans" or "2 pinned plans, 1 not in use. Click into the statement to investigate.")
   - Shows em-dash (—) for statements without pinned plans
-- [x] Column sortable (pinned statements sort above unpinned)
+- [x] Column sortable with three-tier weighting: broken pins (red) > healthy pins (blue) > unpinned, so problem rows surface at the top when sorted descending
 
 ---
 

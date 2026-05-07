@@ -781,8 +781,7 @@ export function StatementDetails(
             <Col className="gutter-row" span={12}>
               <SummaryCard className={cx("summary-card")}>
                 {(() => {
-                  // Map fingerprint ID → { count of pinned plans, count whose Coverage is 0% }.
-                  // The "broken" count surfaces pins that aren't being used at all.
+                  // Map fingerprint ID → { total pinned plans, count whose Pin applied is 0% }.
                   const PIN_DATA: Record<string, { pinned: number; broken: number }> = {
                     "5193222733586324267": { pinned: 2, broken: 0 },
                     "7562955041576980258": { pinned: 2, broken: 1 },
@@ -792,42 +791,34 @@ export function StatementDetails(
                   };
                   const pd = PIN_DATA[statementFingerprintID];
                   if (!pd) return null;
-                  const pinnedBadge: React.CSSProperties = {
-                    display: "inline-flex",
-                    alignItems: "center",
-                    padding: "0 8px",
-                    borderRadius: "3px",
-                    fontSize: "12px",
-                    fontWeight: 400,
-                    height: "24px",
-                    whiteSpace: "nowrap" as const,
-                    backgroundColor: "#e1ecff",
-                    color: "#0037a5",
-                  };
-                  const brokenStyle: React.CSSProperties = {
-                    fontSize: "12px",
-                    color: "#cd2939",
-                    fontWeight: 600,
-                    cursor: "help",
-                  };
+                  // Compact icon + count, red on broken — matches the
+                  // Plan pin status column on the Statements list.
+                  const broken = pd.broken > 0;
+                  const color = broken ? "#cd2939" : "#0037a5";
+                  const tooltip = broken
+                    ? `${pd.pinned} pinned plan${pd.pinned > 1 ? "s" : ""}, ${pd.broken} not in use. Open the Explain plans tab to investigate.`
+                    : `${pd.pinned} pinned plan${pd.pinned > 1 ? "s" : ""}`;
                   return (
                     <SummaryCardItem
                       label="Plan pin status"
                       value={
-                        <span style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
-                          {pd.pinned > 0 && (
-                            <span style={pinnedBadge}>
-                              Pinned ({pd.pinned})
-                            </span>
-                          )}
-                          {pd.broken > 0 && (
-                            <span
-                              style={brokenStyle}
-                              title={`${pd.broken} pinned plan${pd.broken > 1 ? "s are" : " is"} not being used (Coverage 0%). Open the Explain plans tab to investigate.`}
-                            >
-                              {pd.broken} not in use
-                            </span>
-                          )}
+                        <span
+                          title={tooltip}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            color,
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            cursor: "help",
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 17v5" />
+                            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor" />
+                          </svg>
+                          {pd.pinned}
                         </span>
                       }
                     />
