@@ -156,7 +156,7 @@ A table listing every pinned plan across all statement fingerprints.
   - Links to statement detail explain plan tab (`?tab=explain-plan&appNames=<app>`)
 - [x] **Statement** column — monospace font, truncated with ellipsis at `max-width: 250px`
   - Links to statement detail overview (`?appNames=<app>`)
-- [x] **Pin applied** column — right-aligned, formatted as `N% (X of Y)`
+- [x] **Pin applied** column — left-aligned, formatted as `N% (X of Y)`. Counts in the parenthetical are abbreviated to `k`/`M` when ≥ 10,000 (e.g. `16k`, `1.2M`)
   - Defined as `executions of this pinned plan ÷ total executions of the fingerprint × 100`
   - X = executions of this pinned plan, Y = total executions of the fingerprint (across all plans, pinned or not)
   - **100%** = pin sticks for every execution
@@ -165,7 +165,7 @@ A table listing every pinned plan across all statement fingerprints.
   - **0% styling**: cell background `#ffe9eb`, percentage and parenthetical both in `#cd2939` weight 600
   - Other rows: percentage in default text (`#394455`), `(X of Y)` parenthetical in subtle grey (`#7e89a9`) as supporting detail
   - **Header tooltip**: dashed underline + hover popover (standard cluster-ui `Tooltip style="tableTitle"` pattern); explains the metric and the 0% failure case
-- [x] **Override rate** column — right-aligned, formatted as `N% (X of Y)`
+- [x] **Override rate** column — left-aligned, formatted as `N% (X of Y)`. Counts in the parenthetical are abbreviated to `k`/`M` when ≥ 10,000
   - Defined as `overridden ÷ executions × 100`, rounded to nearest integer
   - X = executions where the optimizer would have chosen a different plan but the pin forced this one (the count of "active" overrides)
   - Y = total executions of this pinned plan
@@ -284,7 +284,7 @@ Pin status column added to the main SQL Activity Statements table.
 
 - [x] **Plan pin status** column — "Pinned (N)" blue badge plus optional "N not in use" red text
   - Blue badge: `Pinned (N)`, height 24px, weight 600
-  - Red inline text: `N not in use`, weight 600, `cursor: help` tooltip explains 0% coverage
+  - Red inline text: `N not in use`, weight 600, `cursor: help` tooltip explains 0% Pin applied
   - Shows em-dash (—) for statements without pinned plans
 - [x] Column sortable (pinned statements sort above unpinned)
 
