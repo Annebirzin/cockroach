@@ -791,34 +791,39 @@ export function StatementDetails(
                   };
                   const pd = PIN_DATA[statementFingerprintID];
                   if (!pd) return null;
-                  // Compact icon + count, red on broken — matches the
+                  // Single state-aware badge — same treatment as the
                   // Plan pin status column on the Statements list.
                   const broken = pd.broken > 0;
-                  const color = broken ? "#cd2939" : "#0037a5";
                   const tooltip = broken
                     ? `${pd.pinned} pinned plan${pd.pinned > 1 ? "s" : ""}, ${pd.broken} not in use. Open the Explain plans tab to investigate.`
                     : `${pd.pinned} pinned plan${pd.pinned > 1 ? "s" : ""}`;
+                  const badgeStyle: React.CSSProperties = {
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    padding: "0 8px",
+                    borderRadius: "3px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    height: "24px",
+                    whiteSpace: "nowrap" as const,
+                    backgroundColor: broken ? "#ffe9eb" : "#e1ecff",
+                    color: broken ? "#cd2939" : "#0037a5",
+                    cursor: "help",
+                  };
                   return (
                     <SummaryCardItem
                       label="Plan pin status"
                       value={
-                        <span
-                          title={tooltip}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            color,
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            cursor: "help",
-                          }}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 17v5" />
-                            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor" />
-                          </svg>
-                          {pd.pinned}
+                        <span style={badgeStyle} title={tooltip}>
+                          {broken && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                              <line x1="12" y1="9" x2="12" y2="13" />
+                              <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                          )}
+                          Pinned ({pd.pinned})
                         </span>
                       }
                     />

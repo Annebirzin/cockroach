@@ -214,32 +214,38 @@ export function makeStatementsColumns(
             <span style={{ color: "#c0c6d9", fontSize: "13px" }}>—</span>
           );
         }
-        // Compact icon + count. Red when any pin has Pin applied 0%
-        // (broken). Hover surfaces the breakdown; click into the statement
-        // to investigate on the Explain plans tab.
+        // Single state-aware badge. Blue "Pinned (N)" when healthy; red
+        // "⚠ Pinned (N)" with warning icon when any pinned plan has
+        // Pin applied 0%. Hover surfaces the breakdown; click into the
+        // statement to investigate on the Explain plans tab.
         const broken = pinData.broken > 0;
-        const color = broken ? "#cd2939" : "#0037a5";
         const tooltip = broken
           ? `${pinData.pinned} pinned plan${pinData.pinned > 1 ? "s" : ""}, ${pinData.broken} not in use. Click into the statement to investigate.`
           : `${pinData.pinned} pinned plan${pinData.pinned > 1 ? "s" : ""}`;
+        const badgeStyle: React.CSSProperties = {
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          padding: "0 8px",
+          borderRadius: "3px",
+          fontSize: "12px",
+          fontWeight: 600,
+          height: "24px",
+          whiteSpace: "nowrap",
+          backgroundColor: broken ? "#ffe9eb" : "#e1ecff",
+          color: broken ? "#cd2939" : "#0037a5",
+          cursor: "help",
+        };
         return (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              color,
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "help",
-            }}
-            title={tooltip}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 17v5" />
-              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill="currentColor" />
-            </svg>
-            {pinData.pinned}
+          <span style={badgeStyle} title={tooltip}>
+            {broken && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            )}
+            Pinned ({pinData.pinned})
           </span>
         );
       },
