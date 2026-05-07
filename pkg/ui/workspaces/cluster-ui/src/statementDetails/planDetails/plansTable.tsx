@@ -299,14 +299,18 @@ export function formatIndexes(indexes: string[], database: string): ReactNode {
 export function makeExplainPlanColumns(
   handleDetails: (plan: PlanHashStats) => void,
   pinnedGists?: Set<string>,
-  invalidGists?: Set<string>,
+  coverageByGist?: Map<string, number>,
+  execsByGist?: Map<string, number>,
+  fingerprintTotalExecs?: number,
   onPin?: (gist: string) => void,
   onUnpin?: (gist: string) => void,
 ): ColumnDescriptor<PlanHashStats>[] {
   const duration = (v: number) => Duration(v * 1e9);
   const count = (v: number) => v.toFixed(1);
   const pinned = pinnedGists || new Set<string>();
-  const invalid = invalidGists || new Set<string>();
+  const coverage = coverageByGist || new Map<string, number>();
+  const execs = execsByGist || new Map<string, number>();
+  const totalExecs = fingerprintTotalExecs ?? 0;
   return [
     {
       name: "pin",
@@ -314,7 +318,6 @@ export function makeExplainPlanColumns(
       cell: (item: PlanHashStats) => {
         const gist = item.stats.plan_gists?.[0] || "";
         const isPinned = pinned.has(gist);
-        const isInvalid = isPinned && invalid.has(gist);
         return (
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <button
@@ -354,16 +357,76 @@ export function makeExplainPlanColumns(
                 fontWeight: 600,
                 height: "28px",
                 whiteSpace: "nowrap",
-                backgroundColor: isPinned ? (isInvalid ? "#ffe9eb" : "#e1ecff") : "#f0f2f5",
-                color: isPinned ? (isInvalid ? "#cd2939" : "#0037a5") : "#475872",
+                backgroundColor: isPinned ? "#e1ecff" : "#f0f2f5",
+                color: isPinned ? "#0037a5" : "#475872",
               }}
             >
-              {isPinned ? (isInvalid ? "Invalid pin" : "Pinned") : "Unpinned"}
+              {isPinned ? "Pinned" : "Unpinned"}
             </span>
           </div>
         );
       },
       alwaysShow: true,
+    },
+    {
+      name: "coverage",
+      title: (
+        <Tooltip
+          style="tableTitle"
+          placement="bottom"
+          content={
+            <span style={{ fontWeight: 400 }}>
+              Percentage of fingerprint executions where the optimizer used this pinned plan. 0% means the pin isn't sticking — the optimizer is choosing a different plan every time.
+            </span>
+          }
+        >
+          <span style={{ whiteSpace: "nowrap" }}>Pin applied</span>
+        </Tooltip>
+      ),
+      cell: (item: PlanHashStats) => {
+        const gist = item.stats.plan_gists?.[0] || "";
+        const isPinned = pinned.has(gist);
+        if (!isPinned) {
+          return <span style={{ color: "#c0c6d9" }}>—</span>;
+        }
+        const cov = coverage.get(gist) ?? 100;
+        const broken = cov === 0;
+        const planExecs = execs.get(gist) ?? 0;
+        // Inline number abbreviation: small counts show with commas, large
+        // counts collapse to k/M to keep cells on one line.
+        const fmt = (n: number) =>
+          n < 10000
+            ? n.toLocaleString()
+            : n < 1000000
+            ? `${Math.round(n / 1000)}k`
+            : n < 10000000
+            ? `${(n / 1000000).toFixed(1)}M`
+            : `${Math.round(n / 1000000)}M`;
+        return (
+          <span
+            style={{
+              display: "inline-block",
+              whiteSpace: "nowrap",
+              padding: broken ? "2px 6px" : 0,
+              borderRadius: broken ? "3px" : 0,
+              backgroundColor: broken ? "#ffe9eb" : undefined,
+              color: broken ? "#cd2939" : "#394455",
+              fontWeight: broken ? 600 : 400,
+            }}
+          >
+            {cov}%
+            {totalExecs > 0 && (
+              <span style={{ color: broken ? "#cd2939" : "#7e89a9", fontWeight: 400 }}>
+                {" "}({fmt(planExecs)} of {fmt(totalExecs)})
+              </span>
+            )}
+          </span>
+        );
+      },
+      sort: (item: PlanHashStats) => {
+        const gist = item.stats.plan_gists?.[0] || "";
+        return pinned.has(gist) ? (coverage.get(gist) ?? 100) : -1;
+      },
     },
     {
       name: "planGist",

@@ -63,9 +63,23 @@ const rowStyle: React.CSSProperties = {
   backgroundColor: "#ffffff",
 };
 
-// Mock data for the pinned plans dashboard
+// Total executions per statement fingerprint. Used to render the
+// "Pin applied" cell as `% (X of Y)` where Y is the fingerprint total.
+// All pinned plans for a fingerprint share the same Y.
+const mockTotalExecutions: Record<string, number> = {
+  "5193222733586324267": 660,    // INSERT INTO rides
+  "7562955041576980258": 200,    // SELECT count(*) FROM user_promo_codes
+  "3350546850174482743": 8934,   // SELECT city, id FROM vehicles
+  "7442192024002430332": 16088,  // UPSERT INTO vehicle_location_histories
+  "3939633309730011619": 150,    // INSERT INTO user_promo_codes
+};
+
+// Mock data for the pinned plans dashboard.
+// `coverage` = % of fingerprint executions that used this pinned plan.
+//   100 = pin always wins. 0 = pin never used (e.g. plan no longer applicable).
+//   Anything in between = pin only sticks for some executions.
 const mockPinnedPlans = [
-  // INSERT INTO rides — 2 pinned (both active)
+  // INSERT INTO rides — 2 pinned plans, both well-utilized
   {
     statementFingerprint:
       "INSERT INTO rides VALUES ($1, $2, $3, $4, $5, $6, $7, now(), $8, $9)",
@@ -74,9 +88,9 @@ const mockPinnedPlans = [
     gist: "AiAC2AEB",
     pinnedBy: "root",
     pinnedAt: new Date("2026-03-27T14:30:00"),
-    status: "active" as const,
     executions: 507,
     overridden: 61,
+    coverage: 77,
     avgLatency: 0.0029,
     lastExecTime: new Date("2026-04-03T13:04:00"),
   },
@@ -88,13 +102,15 @@ const mockPinnedPlans = [
     gist: "AiAC2AEC",
     pinnedBy: "root",
     pinnedAt: new Date("2026-03-25T10:00:00"),
-    status: "active" as const,
     executions: 152,
     overridden: 23,
+    coverage: 23,
     avgLatency: 0.0041,
     lastExecTime: new Date("2026-04-02T09:15:00"),
   },
-  // SELECT count(*) FROM user_promo_codes — 1 active + 1 invalid
+  // SELECT count(*) FROM user_promo_codes —
+  // plan 1 only sticks ~60% of the time (the "partial coverage" case);
+  // plan 2 never gets used (Coverage 0% — was previously the "Invalid pin" signal)
   {
     statementFingerprint:
       "SELECT count(*) FROM user_promo_codes WHERE ((city = $1) AND (user_id = $2)) AND (code = $3)",
@@ -103,9 +119,9 @@ const mockPinnedPlans = [
     gist: "AgHeAQIABwIAAAUADAYC",
     pinnedBy: "dba_admin",
     pinnedAt: new Date("2026-03-26T09:15:00"),
-    status: "active" as const,
     executions: 120,
     overridden: 8,
+    coverage: 60,
     avgLatency: 0.0026,
     lastExecTime: new Date("2026-04-03T13:04:00"),
   },
@@ -117,14 +133,13 @@ const mockPinnedPlans = [
     gist: "AgHeAQIABwIAAAUADAYE",
     pinnedBy: "dba_admin",
     pinnedAt: new Date("2026-03-24T11:30:00"),
-    status: "invalid" as const,
-    invalidReason: "Statistics stale: table schema changed since pin was created",
     executions: 0,
     overridden: 0,
+    coverage: 0,
     avgLatency: 0,
     lastExecTime: new Date("2026-03-24T16:00:00"),
   },
-  // SELECT city, id FROM vehicles — 1 invalid + 1 active
+  // SELECT city, id FROM vehicles — one stale pin (0%) + one fully utilized (100%)
   {
     statementFingerprint:
       "SELECT city, id FROM vehicles WHERE city = $1",
@@ -133,10 +148,9 @@ const mockPinnedPlans = [
     gist: "AgHWAQQAAwIAAAYE",
     pinnedBy: "root",
     pinnedAt: new Date("2026-03-25T11:00:00"),
-    status: "invalid" as const,
-    invalidReason: "Referenced index 'vehicles@idx_city_status' was dropped",
     executions: 0,
     overridden: 0,
+    coverage: 0,
     avgLatency: 0,
     lastExecTime: new Date("2026-03-25T16:30:00"),
   },
@@ -148,13 +162,13 @@ const mockPinnedPlans = [
     gist: "AgHWAQQAAwIAAAYF",
     pinnedBy: "root",
     pinnedAt: new Date("2026-03-26T08:00:00"),
-    status: "active" as const,
     executions: 8934,
     overridden: 412,
+    coverage: 100,
     avgLatency: 0.0011,
     lastExecTime: new Date("2026-04-03T13:05:00"),
   },
-  // UPSERT INTO vehicle_location_histories — 2 pinned (both active)
+  // UPSERT INTO vehicle_location_histories — split coverage between two pins
   {
     statementFingerprint:
       "UPSERT INTO vehicle_location_histories VALUES ($1, $2, now(), $3, $4)",
@@ -163,9 +177,9 @@ const mockPinnedPlans = [
     gist: "AgICCgUOMCLaAQAxBQQUBdgBAgQBKg==",
     pinnedBy: "sre_oncall",
     pinnedAt: new Date("2026-03-24T08:45:00"),
-    status: "active" as const,
     executions: 12378,
     overridden: 1856,
+    coverage: 77,
     avgLatency: 0.0008,
     lastExecTime: new Date("2026-04-03T13:05:00"),
   },
@@ -177,13 +191,14 @@ const mockPinnedPlans = [
     gist: "AgICCgUOMCLaAQAxBQQUBQ==",
     pinnedBy: "sre_oncall",
     pinnedAt: new Date("2026-03-22T14:30:00"),
-    status: "active" as const,
     executions: 3710,
     overridden: 540,
+    coverage: 23,
     avgLatency: 0.0012,
     lastExecTime: new Date("2026-04-02T22:10:00"),
   },
-  // INSERT INTO user_promo_codes — 2 pinned (both active)
+  // INSERT INTO user_promo_codes — pins are exhaustive but optimizer agrees
+  // (Overridden = 0 means pin is redundant, not broken)
   {
     statementFingerprint:
       "INSERT INTO user_promo_codes VALUES ($1, $2, $3, now(), $4)",
@@ -192,9 +207,9 @@ const mockPinnedPlans = [
     gist: "AiAC3gEB",
     pinnedBy: "root",
     pinnedAt: new Date("2026-03-20T15:20:00"),
-    status: "active" as const,
     executions: 116,
     overridden: 0,
+    coverage: 77,
     avgLatency: 0.0041,
     lastExecTime: new Date("2026-04-03T13:04:00"),
   },
@@ -206,9 +221,9 @@ const mockPinnedPlans = [
     gist: "AiAC3gEC",
     pinnedBy: "root",
     pinnedAt: new Date("2026-03-18T09:45:00"),
-    status: "active" as const,
     executions: 34,
     overridden: 0,
+    coverage: 23,
     avgLatency: 0.0058,
     lastExecTime: new Date("2026-04-01T11:20:00"),
   },
@@ -240,19 +255,6 @@ const mockDriftAlerts = [
     latencyDelta: 0.0012,
     pinnedLatency: 0.0008,
     candidateLatency: 0.002,
-  },
-  {
-    fingerprintID: "7562955041576980258",
-    statement:
-      "SELECT count(*) FROM user_promo_codes WHERE ((city = $1) AND (user_id = $2)) AND (code = $3)",
-    pinnedGist: "AgHeAQIABwIAAAUADAYC",
-    candidateGist: "AgHeAQIABwIAAAUADAYD",
-    wouldHaveExecuted: 18,
-    lastWouldHaveExecuted: new Date("2026-03-27T18:30:00"),
-    assessment: "pin-invalid" as const,
-    latencyDelta: 0.0031,
-    pinnedLatency: 0.0026,
-    candidateLatency: 0.0057,
   },
 ];
 
@@ -354,17 +356,19 @@ function formatDuration(seconds: number): string {
   return `${seconds.toFixed(2)} s`;
 }
 
-function PlanPinBadge({
-  status,
-  reason,
-}: {
-  status: "active" | "invalid";
-  reason?: string;
-}): React.ReactElement {
-  const isInvalid = status === "invalid";
+// Compact integer formatter. Keeps small counts readable with commas, then
+// switches to k/M abbreviations once values get long enough to bloat the
+// "Pin applied" / "Override rate" cells (e.g. 16,088 \u2192 "16k").
+function abbrev(n: number): string {
+  if (n < 10000) return n.toLocaleString();
+  if (n < 1000000) return `${Math.round(n / 1000)}k`;
+  if (n < 10000000) return `${(n / 1000000).toFixed(1)}M`;
+  return `${Math.round(n / 1000000)}M`;
+}
+
+function PlanPinBadge(): React.ReactElement {
   return (
     <span
-      title={reason}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -374,12 +378,11 @@ function PlanPinBadge({
         fontWeight: 600,
         height: "28px",
         whiteSpace: "nowrap",
-        backgroundColor: isInvalid ? "#ffe9eb" : "#e1ecff",
-        color: isInvalid ? "#cd2939" : "#0037a5",
-        cursor: reason ? "help" : "default",
+        backgroundColor: "#e1ecff",
+        color: "#0037a5",
       }}
     >
-      {isInvalid ? "Invalid pin" : "Pinned"}
+      Pinned
     </span>
   );
 }
@@ -409,20 +412,61 @@ function SortableHeader({
   sortConfig,
   onSort,
   style,
+  tooltip,
 }: {
   label: string;
   column: string;
   sortConfig: SortConfig | null;
   onSort: (column: string) => void;
   style?: React.CSSProperties;
+  // When provided, renders the label with a dashed underline + hover popover.
+  // Mirrors the standard cluster-ui pattern: Tooltip style="tableTitle" wraps
+  // a label whose dashed underline comes from the consumer (the SortedTable
+  // applies it via a CSS module; this prototype applies it inline).
+  tooltip?: React.ReactNode;
 }): React.ReactElement {
+  // Sort arrows live in their own auto-width slot; the label fills the rest
+  // and aligns to the right when the th is right-aligned. Without this
+  // flex wrapper, the Tooltip's inline-block child can wrap the arrows
+  // onto a second line in narrow columns.
+  const isRightAligned = (style as React.CSSProperties | undefined)?.textAlign === "right";
+  const labelInner = (
+    <span
+      style={{
+        // Reserve the dashed underline only when there's a tooltip — otherwise
+        // plain headers stay flush.
+        borderBottom: tooltip ? "1px dashed #475872" : undefined,
+        // Match the dashed line's width to the text, not the cell.
+        display: "inline",
+      }}
+    >
+      {label}
+    </span>
+  );
+  const labelEl = tooltip ? (
+    <Tooltip style="tableTitle" placement="bottom" content={tooltip}>
+      {labelInner}
+    </Tooltip>
+  ) : (
+    labelInner
+  );
   return (
     <th
       style={{ ...thStyle, ...style, cursor: "pointer", userSelect: "none" }}
       onClick={() => onSort(column)}
     >
-      {label}
-      <SortArrows column={column} sortConfig={sortConfig} />
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 0,
+          justifyContent: isRightAligned ? "flex-end" : "flex-start",
+          width: "100%",
+        }}
+      >
+        {labelEl}
+        <SortArrows column={column} sortConfig={sortConfig} />
+      </span>
     </th>
   );
 }
@@ -566,11 +610,31 @@ export function PinnedPlansPage(): React.ReactElement {
               <th style={{ ...thStyle, paddingLeft: "24px" }}>Plan pin status</th>
               <SortableHeader label="Plan gist" column="gist" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
               <SortableHeader label="Statement" column="statement" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
+              <SortableHeader
+                label="Pin applied"
+                column="coverage"
+                sortConfig={overviewSort}
+                onSort={handleSort(setOverviewSort)}
+                tooltip={
+                  <span style={{ fontWeight: 400 }}>
+                    Percentage of fingerprint executions where the optimizer used this pinned plan. 0% means the pin isn't sticking — the optimizer is choosing a different plan every time.
+                  </span>
+                }
+              />
+              <SortableHeader
+                label="Override rate"
+                column="overrideRate"
+                sortConfig={overviewSort}
+                onSort={handleSort(setOverviewSort)}
+                tooltip={
+                  <span style={{ fontWeight: 400 }}>
+                    Percentage of pinned-plan executions where the pin overrode the optimizer's choice. Higher means the pin is actively protecting against drift; 0% means the optimizer would have picked this plan anyway (the pin is redundant).
+                  </span>
+                }
+              />
+              <SortableHeader label="Avg latency" column="avgLatency" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
               <SortableHeader label="Pinned by" column="pinnedBy" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
               <SortableHeader label="Pinned at" column="pinnedAt" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} />
-              <SortableHeader label="Executions" column="executions" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
-              <SortableHeader label="Overridden" column="overridden" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
-              <SortableHeader label="Avg latency" column="avgLatency" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
               <SortableHeader label="Last executed" column="lastExecTime" sortConfig={overviewSort} onSort={handleSort(setOverviewSort)} style={{ textAlign: "right" }} />
             </tr>
           </thead>
@@ -578,11 +642,13 @@ export function PinnedPlansPage(): React.ReactElement {
             {sortData(mockPinnedPlans, overviewSort, {
               statement: p => p.statementFingerprint,
               gist: p => p.gist,
-              status: p => p.status,
               pinnedBy: p => p.pinnedBy,
               pinnedAt: p => p.pinnedAt.getTime(),
-              executions: p => p.executions,
-              overridden: p => p.overridden,
+              coverage: p => p.coverage,
+              // Sort by override rate (overridden / executions). Rows with no
+              // executions sort to the bottom in either direction by returning
+              // -1 — the rate is undefined for them.
+              overrideRate: p => (p.executions > 0 ? p.overridden / p.executions : -1),
               avgLatency: p => p.avgLatency,
               lastExecTime: p => p.lastExecTime.getTime(),
             }).map((plan, i) => (
@@ -631,7 +697,7 @@ export function PinnedPlansPage(): React.ReactElement {
                         Unpinned
                       </span>
                     ) : (
-                      <PlanPinBadge status={plan.status} reason={(plan as any).invalidReason} />
+                      <PlanPinBadge />
                     )}
                   </div>
                 </td>
@@ -645,15 +711,49 @@ export function PinnedPlansPage(): React.ReactElement {
                     {plan.statementFingerprint}
                   </Link>
                 </td>
+                <td
+                  style={{
+                    ...tdStyle,
+                    whiteSpace: "nowrap",
+                    backgroundColor: plan.coverage === 0 ? "#ffe9eb" : undefined,
+                    color: plan.coverage === 0 ? "#cd2939" : "#394455",
+                    fontWeight: plan.coverage === 0 ? 600 : 400,
+                  }}
+                >
+                  {(() => {
+                    const total = mockTotalExecutions[plan.fingerprintID] ?? plan.executions;
+                    return (
+                      <>
+                        <span>{plan.coverage}%</span>
+                        <span style={{ color: plan.coverage === 0 ? "#cd2939" : "#7e89a9" }}>
+                          {" "}({abbrev(plan.executions)} of {abbrev(total)})
+                        </span>
+                      </>
+                    );
+                  })()}
+                </td>
+                <td style={{ ...tdStyle, whiteSpace: "nowrap", color: "#394455" }}>
+                  {plan.executions === 0 ? (
+                    <span style={{ color: "#c0c6d9" }}>—</span>
+                  ) : (
+                    (() => {
+                      const rate = Math.round((plan.overridden / plan.executions) * 100);
+                      return (
+                        <>
+                          <span>{rate}%</span>
+                          <span style={{ color: "#7e89a9" }}>
+                            {" "}({abbrev(plan.overridden)} of {abbrev(plan.executions)})
+                          </span>
+                        </>
+                      );
+                    })()
+                  )}
+                </td>
+                <td style={{ ...tdStyle, textAlign: "right" }}>{formatDuration(plan.avgLatency)}</td>
                 <td style={tdStyle}>{plan.pinnedBy}</td>
                 <td style={tdStyle}>
                   {plan.pinnedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                 </td>
-                <td style={{ ...tdStyle, textAlign: "right" }}>{plan.executions.toLocaleString()}</td>
-                <td style={{ ...tdStyle, textAlign: "right", color: plan.overridden > 0 ? "#0037a5" : "#394455" }}>
-                  {plan.overridden.toLocaleString()}
-                </td>
-                <td style={{ ...tdStyle, textAlign: "right" }}>{formatDuration(plan.avgLatency)}</td>
                 <td style={{ ...tdStyle, textAlign: "right" }}>
                   {plan.lastExecTime.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
                   {plan.lastExecTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
@@ -706,8 +806,6 @@ export function PinnedPlansPage(): React.ReactElement {
                         <p style={{ margin: 0, maxWidth: "280px" }}>
                           {drift.assessment === "potential-improvement"
                             ? "The candidate plan has lower latency than the pinned plan. The optimizer may have found a better execution path. Consider testing and pinning the candidate."
-                            : drift.assessment === "pin-invalid"
-                            ? "Pinned plan is invalid (e.g., schema change). The optimizer fell back to the candidate plan. Pin it to make it the active plan, or unpin to let the optimizer choose freely."
                             : "The candidate plan has higher latency than the pinned plan. The pin is protecting against a regression. Investigate why the optimizer prefers a worse plan."}
                         </p>
                       }
@@ -723,17 +821,11 @@ export function PinnedPlansPage(): React.ReactElement {
                         height: "28px",
                         whiteSpace: "nowrap",
                         cursor: "default",
-                        backgroundColor: drift.assessment === "potential-improvement" ? "#e3f5e0"
-                          : drift.assessment === "pin-invalid" ? "#ffe9eb"
-                          : "#ffe9eb",
-                        color: drift.assessment === "potential-improvement" ? "#237300"
-                          : drift.assessment === "pin-invalid" ? "#cd2939"
-                          : "#cd2939",
+                        backgroundColor: drift.assessment === "potential-improvement" ? "#e3f5e0" : "#ffe9eb",
+                        color: drift.assessment === "potential-improvement" ? "#237300" : "#cd2939",
                       }}
                     >
-                      {drift.assessment === "potential-improvement" ? "Potential improvement"
-                        : drift.assessment === "pin-invalid" ? "Invalid pin"
-                        : "Regression risk"}
+                      {drift.assessment === "potential-improvement" ? "Potential improvement" : "Regression risk"}
                     </span>
                     </Tooltip>
                   </td>
@@ -781,10 +873,7 @@ export function PinnedPlansPage(): React.ReactElement {
                           Unpinned
                         </span>
                       ) : (
-                        <PlanPinBadge
-                          status={drift.assessment === "pin-invalid" ? "invalid" : "active"}
-                          reason={drift.assessment === "pin-invalid" ? "Plan invalid (e.g., schema change)" : undefined}
-                        />
+                        <PlanPinBadge />
                       )}
                       <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
                         {drift.pinnedGist.length > 24 ? drift.pinnedGist.slice(0, 24) + "..." : drift.pinnedGist}
@@ -822,7 +911,7 @@ export function PinnedPlansPage(): React.ReactElement {
                       )}
                       {drift.assessment !== "regression-risk" &&
                         pinnedCandidates.has(drift.candidateGist) && (
-                          <PlanPinBadge status="active" />
+                          <PlanPinBadge />
                         )}
                       <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
                         {drift.candidateGist.length > 24 ? drift.candidateGist.slice(0, 24) + "..." : drift.candidateGist}

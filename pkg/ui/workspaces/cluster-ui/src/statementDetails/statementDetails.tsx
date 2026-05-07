@@ -781,16 +781,18 @@ export function StatementDetails(
             <Col className="gutter-row" span={12}>
               <SummaryCard className={cx("summary-card")}>
                 {(() => {
-                  const PIN_DATA: Record<string, { active: number; invalid: number }> = {
-                    "5193222733586324267": { active: 2, invalid: 0 },
-                    "7562955041576980258": { active: 1, invalid: 1 },
-                    "3350546850174482743": { active: 1, invalid: 1 },
-                    "7442192024002430332": { active: 2, invalid: 0 },
-                    "3939633309730011619": { active: 2, invalid: 0 },
+                  // Map fingerprint ID → { count of pinned plans, count whose Coverage is 0% }.
+                  // The "broken" count surfaces pins that aren't being used at all.
+                  const PIN_DATA: Record<string, { pinned: number; broken: number }> = {
+                    "5193222733586324267": { pinned: 2, broken: 0 },
+                    "7562955041576980258": { pinned: 2, broken: 1 },
+                    "3350546850174482743": { pinned: 2, broken: 1 },
+                    "7442192024002430332": { pinned: 2, broken: 0 },
+                    "3939633309730011619": { pinned: 2, broken: 0 },
                   };
                   const pd = PIN_DATA[statementFingerprintID];
                   if (!pd) return null;
-                  const bStyle = (isInv: boolean): React.CSSProperties => ({
+                  const pinnedBadge: React.CSSProperties = {
                     display: "inline-flex",
                     alignItems: "center",
                     padding: "0 8px",
@@ -799,22 +801,31 @@ export function StatementDetails(
                     fontWeight: 400,
                     height: "24px",
                     whiteSpace: "nowrap" as const,
-                    backgroundColor: isInv ? "#ffe9eb" : "#e1ecff",
-                    color: isInv ? "#cd2939" : "#0037a5",
-                  });
+                    backgroundColor: "#e1ecff",
+                    color: "#0037a5",
+                  };
+                  const brokenStyle: React.CSSProperties = {
+                    fontSize: "12px",
+                    color: "#cd2939",
+                    fontWeight: 600,
+                    cursor: "help",
+                  };
                   return (
                     <SummaryCardItem
                       label="Plan pin status"
                       value={
-                        <span style={{ display: "inline-flex", gap: "6px" }}>
-                          {pd.active > 0 && (
-                            <span style={bStyle(false)}>
-                              Pinned ({pd.active})
+                        <span style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
+                          {pd.pinned > 0 && (
+                            <span style={pinnedBadge}>
+                              Pinned ({pd.pinned})
                             </span>
                           )}
-                          {pd.invalid > 0 && (
-                            <span style={bStyle(true)}>
-                              Invalid pin ({pd.invalid})
+                          {pd.broken > 0 && (
+                            <span
+                              style={brokenStyle}
+                              title={`${pd.broken} pinned plan${pd.broken > 1 ? "s are" : " is"} not being used (Coverage 0%). Open the Explain plans tab to investigate.`}
+                            >
+                              {pd.broken} not in use
                             </span>
                           )}
                         </span>

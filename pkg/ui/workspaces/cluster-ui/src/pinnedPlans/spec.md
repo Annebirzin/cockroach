@@ -36,7 +36,7 @@ cd pkg/ui/workspaces/cluster-ui/src/pinnedPlans && ./start-dev.sh
 3. **All pinned plans** sub-tab is selected by default
 4. Table shows all pinned plan gists across all statement fingerprints
 
-- **Validation:** Table displays plan pin status, gist, statement, pinned by, pinned at, executions, overridden, avg latency, last executed for each pinned plan
+- **Validation:** Table displays plan pin status, gist, statement, pin applied (`N% (X of Y)`), override rate (`N% (X of Y)`), avg latency, pinned by, pinned at, last executed for each pinned plan (Pin applied and Override rate — the two pin-health metrics — sit immediately to the right of the statement column for scannability; Avg latency follows because it's per-plan performance, then provenance metadata at the right edge)
 - **Validation:** Clicking a plan gist navigates to the statement detail explain plan tab
 - **Validation:** Clicking a statement navigates to the statement detail overview
 
@@ -53,13 +53,13 @@ cd pkg/ui/workspaces/cluster-ui/src/pinnedPlans && ./start-dev.sh
 
 ### Flow 3: Pin a candidate plan from drift analysis *(out of scope for V1)*
 
-1. On drift analysis tab, find a candidate with "Potential improvement" or "Invalid pin" assessment
+1. On drift analysis tab, find a candidate with "Potential improvement" assessment
 2. Click the pin icon button in the **Candidate plan gist** column
 3. Confirmation modal appears: "Pin this plan" with explanation text
 4. Click "Pin plan" to confirm
 5. "Pinned" badge appears next to the pin button; pin icon fills and turns blue
 
-- **Validation:** Pin button appears in candidate column for "Potential improvement" and "Invalid pin" rows (not for "Regression risk")
+- **Validation:** Pin button appears in candidate column for "Potential improvement" rows only (not for "Regression risk")
 - **Validation:** No "Unpinned" badge shown before pinning — just pin button + gist link
 - **Validation:** "Pinned" badge appears only after confirming via modal
 - **Validation:** Hovering assessment badges shows explanatory tooltip
@@ -89,34 +89,39 @@ cd pkg/ui/workspaces/cluster-ui/src/pinnedPlans && ./start-dev.sh
 
 1. Navigate to **SQL Activity → Statements** tab
 2. Locate the **Plan pin status** column
-3. Statements with pinned plans show "Pinned (N)" and/or "Invalid pin (N)" badges
-4. Statements without pins show em-dash (—)
+3. Statements with pinned plans show a "Pinned (N)" badge
+4. If any of those pinned plans have **Pin applied 0%** (the optimizer is not actually using them), the cell also shows red "N not in use" inline next to the badge
+5. Statements without pins show em-dash (—)
 
-- **Validation:** Badge counts match the number of pinned/invalid plans for that fingerprint
+- **Validation:** "Pinned (N)" count matches the total number of pinned plans for that fingerprint
+- **Validation:** "N not in use" count matches the number of pinned plans whose Pin applied is 0%
+- **Validation:** Hovering "N not in use" shows an explanatory tooltip pointing the user to the Explain plans tab
 - **Validation:** Clicking into a statement with pins shows pin status in the summary card
 
 ### Flow 7: View pin status on statement detail page
 
 1. Click into a statement fingerprint from the Statements table
 2. In the right summary card, find "Plan pin status" row (above Failure count)
-3. Badges show "Pinned (N)" and/or "Invalid pin (N)" with counts
+3. Row shows a "Pinned (N)" badge plus, when applicable, red "N not in use" inline indicating how many pinned plans have Pin applied 0%
 
-- **Validation:** Counts match the explain plan table's pin column
-- **Validation:** Click "Explain plans" tab to see per-plan pin status
+- **Validation:** "Pinned (N)" count matches the explain plan table's pin column
+- **Validation:** "N not in use" count matches the number of plans with Pin applied 0% on the Explain plans tab
+- **Validation:** Click "Explain plans" tab to see per-plan pin status and coverage
 
 ### Flow 8: Pin/unpin plans from the explain plan table
 
 1. On statement detail, click **Explain plans** tab
-2. Plan table shows "Plan pin status" as first column
+2. Plan table shows "Plan pin status" as first column and **Pin applied** as the second column
 3. Click pin icon to toggle pin state
 4. Confirmation modal appears: "Pin this plan" or "Unpin this plan" with explanation text
 5. Click "Pin plan" / "Unpin plan" to confirm
-6. Badge updates: Pinned (blue), Unpinned (grey), or Invalid pin (red)
-7. Audit log entry recorded only after confirmation
+6. Badge updates: Pinned (blue) or Unpinned (grey)
+7. Pin applied cell shows the % of fingerprint executions using this pinned plan; renders red on a red background when Pin applied is 0% (pin is not being applied), em-dash when the plan is not pinned
+8. Audit log entry recorded only after confirmation
 
 - **Validation:** Cancelling the modal leaves pin state unchanged and writes no audit entry
 - **Validation:** Pin state persists while navigating between plan table and plan detail views
-- **Validation:** Clicking into a plan detail view shows matching pin status
+- **Validation:** Clicking into a plan detail view shows matching pin status and coverage
 - **Validation:** Pin/unpin from the plan detail view (top-right button) also opens the same confirmation modal
 
 ---
@@ -139,22 +144,38 @@ A new **"Pinned plans"** tab added to the SQL Activity page alongside Statements
 
 A table listing every pinned plan across all statement fingerprints.
 
+**Pin health is communicated via two numeric columns — Pin applied and Override rate — rather than a status taxonomy.** Pin applied tells the user whether the pin is actually being applied; Override rate tells them whether the pin is doing real work when it is applied (the share of pinned-plan executions where the pin overrode the optimizer's choice). Both are percentages with supporting raw counts, sortable, and use the same red treatment when 0% Pin applied indicates a broken pin. There is no "Invalid pin" or "Active" badge — the data carries the signal.
+
 - [x] **Plan pin status** column (first column) — icon-only pin/unpin toggle button + status badge
   - Pin button: 14px pin SVG icon, `6px` padding, `1px solid #c0c6d9` border, `4px` border-radius
   - Pin button color: `#0055ff` (blue) when pinned, `#394455` (grey) when unpinned
   - Pin icon: filled when pinned, outline when unpinned
-  - Badge states: "Pinned" (blue), "Invalid pin" (red), "Unpinned" (grey)
+  - Badge states: "Pinned" (blue) or "Unpinned" (grey)
   - Clicking pin/unpin opens a **confirmation modal** before toggling state (see 2.5)
 - [x] **Plan gist** column — truncated to 24 chars with tooltip showing full gist
   - Links to statement detail explain plan tab (`?tab=explain-plan&appNames=<app>`)
 - [x] **Statement** column — monospace font, truncated with ellipsis at `max-width: 250px`
   - Links to statement detail overview (`?appNames=<app>`)
+- [x] **Pin applied** column — right-aligned, formatted as `N% (X of Y)`
+  - Defined as `executions of this pinned plan ÷ total executions of the fingerprint × 100`
+  - X = executions of this pinned plan, Y = total executions of the fingerprint (across all plans, pinned or not)
+  - **100%** = pin sticks for every execution
+  - **1%–99%** = pin sticks for some executions; the optimizer falls back to a different plan for the rest (the "partial coverage" case)
+  - **0%** = pin is not being used at all (subsumes the previous "Invalid pin" signal — captures schema changes, plan no longer applicable for current parameter shapes, etc., without requiring a category definition)
+  - **0% styling**: cell background `#ffe9eb`, percentage and parenthetical both in `#cd2939` weight 600
+  - Other rows: percentage in default text (`#394455`), `(X of Y)` parenthetical in subtle grey (`#7e89a9`) as supporting detail
+  - **Header tooltip**: dashed underline + hover popover (standard cluster-ui `Tooltip style="tableTitle"` pattern); explains the metric and the 0% failure case
+- [x] **Override rate** column — right-aligned, formatted as `N% (X of Y)`
+  - Defined as `overridden ÷ executions × 100`, rounded to nearest integer
+  - X = executions where the optimizer would have chosen a different plan but the pin forced this one (the count of "active" overrides)
+  - Y = total executions of this pinned plan
+  - **Percentage** rendered in default text color (`#394455`) weight 400 — no blue/bold emphasis (the rate value itself carries the signal). The `(X of Y)` parenthetical is rendered in subtle grey (`#7e89a9`) as supporting detail
+  - Renders em-dash (`—`) in `#c0c6d9` when Y = 0 (no executions of this pinned plan; rate is undefined)
+  - Sort key is the rate itself; rows with no executions sort to the bottom regardless of direction
+  - **Header tooltip**: dashed underline + hover popover (standard cluster-ui `Tooltip style="tableTitle"` pattern); explains higher rate = pin is doing work, 0% = pin is redundant
+- [x] **Avg latency** column — right-aligned, formatted as duration (us/ms/s)
 - [x] **Pinned by** column — username who created the pin
 - [x] **Pinned at** column — date formatted as "MMM D, YYYY"
-- [x] **Executions** column — right-aligned, locale-formatted number
-- [x] **Overridden** column — right-aligned, blue text (`#0037a5`) when > 0
-  - Count of executions where optimizer would have chosen a different plan
-- [x] **Avg latency** column — right-aligned, formatted as duration (us/ms/s)
 - [x] **Last executed** column — right-aligned, "MMM D HH:MM AM/PM"
 - [x] All columns sortable (ascending/descending toggle with arrow indicators)
 - [x] Row count display: "1-N of N pinned plans"
@@ -168,14 +189,13 @@ Surfaces alternative plans the optimizer would have chosen absent pinning.
 - [x] **Assessment** column (first column) — color-coded badge (28px tall, matches Pin badge) with tooltip:
   - "Potential improvement" — green (`#e3f5e0` bg, `#237300` text). Tooltip: "The candidate plan has lower latency than the pinned plan. The optimizer may have found a better execution path. Consider testing and pinning the candidate."
   - "Regression risk" — red (`#ffe9eb` bg, `#cd2939` text). Tooltip: "The candidate plan has higher latency than the pinned plan. The pin is protecting against a regression. Investigate why the optimizer prefers a worse plan."
-  - "Invalid pin" — red (`#ffe9eb` bg, `#cd2939` text — matches the "Invalid pin" badge used elsewhere). Tooltip: "Pinned plan is invalid (e.g., schema change). The optimizer fell back to the candidate plan. Pin it to make it the active plan, or unpin to let the optimizer choose freely."
   - Tooltips render via `Tooltip` component, `placement="bottom"`, `max-width: 280px`
 - [x] **Pinned plan gist** column — pin/unpin toggle button + "Pinned"/"Unpinned" badge + gist link
   - Pin button and badge styling matches All Pinned Plans table
   - Clicking pin/unpin opens a **confirmation modal** before toggling state (see 2.5)
   - Links to statement detail explain plan tab
 - [x] **Candidate plan gist** column — pin button + gist link
-  - Pin button appears for "Potential improvement" and "Invalid pin" rows (not for "Regression risk", since pinning a worse plan defeats the safeguard)
+  - Pin button appears for "Potential improvement" rows only (not for "Regression risk", since pinning a worse plan defeats the safeguard)
   - "Pinned" badge shown only after pinning; **no "Unpinned" badge** when not pinned (just pin button + gist link)
   - Clicking pin opens a **confirmation modal** before pinning (see 2.5)
   - Links to statement detail explain plan tab
@@ -219,8 +239,9 @@ All pin and unpin actions across the prototype — Pinned Plans page, Explain Pl
 Pin status integrated into the existing statement detail page.
 
 - [x] **Plan pin status** row in right summary card (positioned above "Failure count")
-  - Shows aggregated badges with counts: "Pinned (2)", "Invalid pin (1)"
-  - Badges always include count even when count is 1
+  - Shows a "Pinned (N)" blue badge (count always included, even at N=1)
+  - When any of those pinned plans have **Pin applied 0%**, the row also shows red "N not in use" inline next to the badge
+  - "N not in use" has a `cursor: help` tooltip directing the user to the Explain plans tab to investigate
   - Badge font weight: 400 (lighter than table badges)
   - Only appears for statements that have pinned plans
 
@@ -232,10 +253,16 @@ Pin status column added to the plan gist table within statement details.
   - Same styling as Pinned Plans page pin column
   - Badge font weight: 600 (matches table context)
   - Badge height: 28px (matches pin button height)
-  - Shows all three states: Pinned, Unpinned, Invalid pin
+  - Badge states: "Pinned" (blue) or "Unpinned" (grey)
+- [x] **Pin applied** column (second column) — same definition and styling as the All Pinned Plans table
+  - Renders em-dash (`—`) when the plan is not pinned
+  - Renders `0%` with red bg/text/weight 600 when pinned but Pin applied is 0
+  - Renders plain `N%` otherwise
+  - Header uses the same `Tooltip style="tableTitle"` pattern as All Pinned Plans (dotted underline + hover popover with the same copy)
+  - Sortable: unpinned plans sort to the bottom
 - [x] Clicking pin/unpin opens the shared **confirmation modal** (see 2.5) before applying the change
 - [x] Audit log entry written only after the user confirms in the modal
-- [x] Mock plans injected per fingerprint (2-3 plan gists per statement) via `MOCK_PIN_CONFIG`
+- [x] Mock plans injected per fingerprint (2-3 plan gists per statement) via `MOCK_PIN_CONFIG`, which also defines per-gist Pin applied values matching the All Pinned Plans dashboard
 
 ### 2.8 Explain Plan Detail View
 
@@ -244,16 +271,20 @@ Pin status shown when viewing a single plan's explain plan.
 - [x] Pin/unpin button + status badge in top-right corner (opposite "All Plans" back button)
 - [x] Badge font weight: 400 (non-table context)
 - [x] Badge height: 28px
-- [x] Shows all three states: Pinned, Unpinned, Invalid pin
+- [x] Badge states: "Pinned" (blue) or "Unpinned" (grey)
+- [x] When the plan is pinned, an inline **"Pin applied: N%"** indicator renders next to the badge
+  - Red bg `#ffe9eb` + text `#cd2939` weight 600 when Pin applied = 0
+  - Plain text `#475872` otherwise
+  - `cursor: help` with explanatory tooltip
 - [x] Clicking pin/unpin opens the shared **confirmation modal** (see 2.5) before applying the change
 
 ### 2.9 Statements List Table
 
 Pin status column added to the main SQL Activity Statements table.
 
-- [x] **Plan pin status** column — aggregated badges with counts
-  - "Pinned (2)" blue badge, "Invalid pin (1)" red badge
-  - Badge height: 24px
+- [x] **Plan pin status** column — "Pinned (N)" blue badge plus optional "N not in use" red text
+  - Blue badge: `Pinned (N)`, height 24px, weight 600
+  - Red inline text: `N not in use`, weight 600, `cursor: help` tooltip explains 0% coverage
   - Shows em-dash (—) for statements without pinned plans
 - [x] Column sortable (pinned statements sort above unpinned)
 
@@ -287,8 +318,8 @@ Pin status column added to the main SQL Activity Statements table.
 | primary-blue-4 | `#0037a5` | Pinned badge text, active pill tab text, overridden count text |
 | primary-blue-alert | `#e1ecff` | Pinned badge background, active pill tab background |
 | neutral-1 | `#f0f2f5` | Unpinned badge background, pill tab hover |
-| danger-bg | `#ffe9eb` | Invalid pin badge background, Regression risk + Invalid pin assessment background |
-| danger-text | `#cd2939` | Invalid pin badge text, Regression risk + Invalid pin assessment text, positive latency delta |
+| danger-bg | `#ffe9eb` | Pin applied 0% cell/indicator background, Regression risk assessment background |
+| danger-text | `#cd2939` | Pin applied 0% text, "N not in use" inline text, Regression risk assessment text, positive latency delta |
 | success-bg | `#e3f5e0` | Potential improvement badge background |
 | success-text | `#237300` | Potential improvement badge text, negative latency delta |
 

@@ -44,44 +44,63 @@ import { PinPlanModal, usePinPlanModal } from "../../pinnedPlans/pinPlanModal";
 const cx = classNames.bind(styles);
 
 // Mock plan pinning configuration per fingerprint ID.
-// Each entry defines which gists are pinned and which are invalid.
+// Each entry defines which gists are pinned, the coverage % each has, the
+// per-pinned-plan execution count, and the fingerprint-total execution count.
+// Coverage = 0 means the pin isn't being used at all (was previously the
+// "Invalid pin" signal); coverage between 0 and 100 means the pin only
+// sticks for some executions. Values mirror mockPinnedPlans / mockTotalExecutions
+// in pinnedPlansPage.tsx so the dashboard and detail page agree.
 const MOCK_PIN_CONFIG: Record<string, {
   // Extra mock gists to add (beyond the real one from the API)
   extraGists: string[];
   // Which gists should appear as pinned (by index: 0=real, 1+=mock)
   pinnedIndices: number[];
-  // Which gists should appear as invalid pins (by index)
-  invalidIndices: number[];
+  // Coverage % per pinned index
+  coverageByIndex: Record<number, number>;
+  // Per-pinned-plan execution count
+  execsByIndex: Record<number, number>;
+  // Fingerprint-total execution count (denominator for "X of Y" coverage cell)
+  totalExecs: number;
 }> = {
-  // INSERT INTO rides — 2 pinned, 0 invalid
+  // INSERT INTO rides — 2 pinned, both well-utilized
   "5193222733586324267": {
     extraGists: ["AiAC2AEC", "AiAC2AED"],
     pinnedIndices: [0, 1],
-    invalidIndices: [],
+    coverageByIndex: { 0: 77, 1: 23 },
+    execsByIndex: { 0: 507, 1: 152 },
+    totalExecs: 660,
   },
-  // SELECT count(*) FROM user_promo_codes — 2 pinned, 1 invalid
+  // SELECT count(*) FROM user_promo_codes — partial coverage on plan 1, broken on plan 3
   "7562955041576980258": {
     extraGists: ["AgHeAQIABwIAAAUADAYD", "AgHeAQIABwIAAAUADAYE"],
     pinnedIndices: [0, 2],
-    invalidIndices: [2],
+    coverageByIndex: { 0: 60, 2: 0 },
+    execsByIndex: { 0: 120, 2: 0 },
+    totalExecs: 200,
   },
-  // SELECT city, id FROM vehicles — 2 pinned, 1 invalid
+  // SELECT city, id FROM vehicles — one stale (0%) + one fully used (100%)
   "3350546850174482743": {
     extraGists: ["AgHWAQQAAwIAAAYF", "AgHWAQQAAwIAAAYG"],
     pinnedIndices: [0, 1],
-    invalidIndices: [0],
+    coverageByIndex: { 0: 0, 1: 100 },
+    execsByIndex: { 0: 0, 1: 8934 },
+    totalExecs: 8934,
   },
-  // UPSERT INTO vehicle_location_histories — 2 pinned, 0 invalid
+  // UPSERT INTO vehicle_location_histories — 2 pinned, split coverage
   "7442192024002430332": {
     extraGists: ["AgICCgUOMCLaAQAxBQQUBQ==", "AgICCgUOMCLaAQAxBQQUBg=="],
     pinnedIndices: [0, 1],
-    invalidIndices: [],
+    coverageByIndex: { 0: 77, 1: 23 },
+    execsByIndex: { 0: 12378, 1: 3710 },
+    totalExecs: 16088,
   },
-  // INSERT INTO user_promo_codes — 2 pinned, 0 invalid
+  // INSERT INTO user_promo_codes — 2 pinned, split coverage
   "3939633309730011619": {
     extraGists: ["AiAC3gEC", "AiAC3gED"],
     pinnedIndices: [0, 1],
-    invalidIndices: [],
+    coverageByIndex: { 0: 77, 1: 23 },
+    execsByIndex: { 0: 116, 1: 34 },
+    totalExecs: 150,
   },
 };
 
@@ -199,16 +218,34 @@ export function PlanDetails({
     return pinned;
   }, [statementFingerprintID, plans]);
 
-  // Compute the set of gists that are invalid pins
-  const invalidGists = React.useMemo(() => {
-    if (!config || !plans?.length) return new Set<string>();
-    const invalid = new Set<string>();
-    for (const idx of config.invalidIndices) {
+  // Map from pinned gist → coverage % (0–100). Drives the Coverage column
+  // and the red "0%" warning treatment in the Explain plans table.
+  const coverageByGist = React.useMemo(() => {
+    const map = new Map<string, number>();
+    if (!config || !plans?.length) return map;
+    for (const [idxStr, cov] of Object.entries(config.coverageByIndex)) {
+      const idx = Number(idxStr);
       const gist = plans[idx]?.stats?.plan_gists?.[0];
-      if (gist) invalid.add(gist);
+      if (gist) map.set(gist, cov);
     }
-    return invalid;
+    return map;
   }, [statementFingerprintID, plans]);
+
+  // Per-pinned-gist execution count, used as numerator in the "Pin applied"
+  // cell ("60% (X of Y)").
+  const execsByGist = React.useMemo(() => {
+    const map = new Map<string, number>();
+    if (!config || !plans?.length) return map;
+    for (const [idxStr, count] of Object.entries(config.execsByIndex)) {
+      const idx = Number(idxStr);
+      const gist = plans[idx]?.stats?.plan_gists?.[0];
+      if (gist) map.set(gist, count);
+    }
+    return map;
+  }, [statementFingerprintID, plans]);
+
+  // Fingerprint-total executions (denominator for the "Pin applied" cell).
+  const fingerprintTotalExecs = config?.totalExecs ?? 0;
 
   const [pinnedGists, setPinnedGists] = useState<Set<string>>(new Set());
   const [initialized, setInitialized] = useState(false);
@@ -306,7 +343,9 @@ export function PlanDetails({
           onChangeSortSetting={setInsightsSortSetting}
           hasAdminRole={hasAdminRole}
           pinnedGists={pinnedGists}
-          invalidGists={invalidGists}
+          coverageByGist={coverageByGist}
+          execsByGist={execsByGist}
+          fingerprintTotalExecs={fingerprintTotalExecs}
           onPin={handlePin}
           onUnpin={handleUnpin}
         />
@@ -331,7 +370,9 @@ export function PlanDetails({
             sortSetting={plansSortSetting}
             onChangeSortSetting={setPlansSortSetting}
             pinnedGists={pinnedGists}
-            invalidGists={invalidGists}
+            coverageByGist={coverageByGist}
+            execsByGist={execsByGist}
+            fingerprintTotalExecs={fingerprintTotalExecs}
             onPin={handlePin}
             onUnpin={handleUnpin}
           />
@@ -348,7 +389,9 @@ interface PlanTableProps {
   sortSetting: SortSetting;
   onChangeSortSetting: (ss: SortSetting) => void;
   pinnedGists?: Set<string>;
-  invalidGists?: Set<string>;
+  coverageByGist?: Map<string, number>;
+  execsByGist?: Map<string, number>;
+  fingerprintTotalExecs?: number;
   onPin?: (gist: string) => void;
   onUnpin?: (gist: string) => void;
 }
@@ -359,11 +402,21 @@ function PlanTable({
   sortSetting,
   onChangeSortSetting,
   pinnedGists,
-  invalidGists,
+  coverageByGist,
+  execsByGist,
+  fingerprintTotalExecs,
   onPin,
   onUnpin,
 }: PlanTableProps): React.ReactElement {
-  const columns = makeExplainPlanColumns(handleDetails, pinnedGists, invalidGists, onPin, onUnpin);
+  const columns = makeExplainPlanColumns(
+    handleDetails,
+    pinnedGists,
+    coverageByGist,
+    execsByGist,
+    fingerprintTotalExecs,
+    onPin,
+    onUnpin,
+  );
   return (
     <PlansSortedTable
       columns={columns}
@@ -383,7 +436,9 @@ interface ExplainPlanProps {
   onChangeSortSetting: (ss: SortSetting) => void;
   hasAdminRole: boolean;
   pinnedGists?: Set<string>;
-  invalidGists?: Set<string>;
+  coverageByGist?: Map<string, number>;
+  execsByGist?: Map<string, number>;
+  fingerprintTotalExecs?: number;
   onPin?: (gist: string) => void;
   onUnpin?: (gist: string) => void;
 }
@@ -396,13 +451,17 @@ function ExplainPlan({
   onChangeSortSetting,
   hasAdminRole,
   pinnedGists,
-  invalidGists,
+  coverageByGist,
+  execsByGist,
+  fingerprintTotalExecs,
   onPin,
   onUnpin,
 }: ExplainPlanProps): React.ReactElement {
   const gist = plan.stats.plan_gists?.[0] || "";
   const isPinned = pinnedGists?.has(gist) || false;
-  const isInvalidPin = isPinned && (invalidGists?.has(gist) || false);
+  const coverage = isPinned ? (coverageByGist?.get(gist) ?? 100) : null;
+  const planExecs = isPinned ? (execsByGist?.get(gist) ?? 0) : 0;
+  const totalExecs = fingerprintTotalExecs ?? 0;
   const explainPlan =
     `Plan Gist: ${gist} \n\n` +
     (plan.explain_plan === "" ? "unavailable" : plan.explain_plan);
@@ -434,12 +493,42 @@ function ExplainPlan({
               fontWeight: 400,
               height: "28px",
               whiteSpace: "nowrap",
-              backgroundColor: isPinned ? (isInvalidPin ? "#ffe9eb" : "#e1ecff") : "#f0f2f5",
-              color: isPinned ? (isInvalidPin ? "#cd2939" : "#0037a5") : "#475872",
+              backgroundColor: isPinned ? "#e1ecff" : "#f0f2f5",
+              color: isPinned ? "#0037a5" : "#475872",
             }}
           >
-            {isPinned ? (isInvalidPin ? "Invalid pin" : "Pinned") : "Unpinned"}
+            {isPinned ? "Pinned" : "Unpinned"}
           </span>
+          {isPinned && coverage !== null && (
+            <span
+              title={
+                coverage === 0
+                  ? "This pinned plan is not being used. The optimizer is selecting a different plan for every execution."
+                  : coverage < 100
+                  ? `Pin sticks for ${coverage}% of executions; the optimizer falls back for the remaining ${100 - coverage}%.`
+                  : "Pin sticks for every execution of this fingerprint."
+              }
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                fontSize: "12px",
+                fontWeight: coverage === 0 ? 600 : 400,
+                color: coverage === 0 ? "#cd2939" : "#475872",
+                padding: coverage === 0 ? "2px 6px" : 0,
+                borderRadius: coverage === 0 ? "3px" : 0,
+                backgroundColor: coverage === 0 ? "#ffe9eb" : undefined,
+                cursor: "help",
+              }}
+            >
+              Pin applied: {coverage}%
+              {totalExecs > 0 && (
+                <span style={{ color: coverage === 0 ? "#cd2939" : "#7e89a9" }}>
+                  {" "}({planExecs.toLocaleString()} of {totalExecs.toLocaleString()})
+                </span>
+              )}
+            </span>
+          )}
           <button
             onClick={() => isPinned ? onUnpin?.(gist) : onPin?.(gist)}
             title={isPinned ? "Unpin" : "Pin"}

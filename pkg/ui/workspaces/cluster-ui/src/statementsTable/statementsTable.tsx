@@ -198,14 +198,15 @@ export function makeStatementsColumns(
         </Tooltip>
       ),
       cell: (stmt: AggregateStatistics) => {
-        // Mock pinned fingerprint IDs matching pinnedPlansPage.tsx
-        // Maps fingerprint ID to { active: count, invalid: count }
-        const PINNED_IDS: Record<string, { active: number; invalid: number }> = {
-          "5193222733586324267": { active: 2, invalid: 0 },
-          "7562955041576980258": { active: 1, invalid: 1 },
-          "3350546850174482743": { active: 1, invalid: 1 },
-          "7442192024002430332": { active: 2, invalid: 0 },
-          "3939633309730011619": { active: 2, invalid: 0 },
+        // Mock pinned fingerprint IDs matching pinnedPlansPage.tsx.
+        // pinned = total pinned plans for this fingerprint;
+        // broken = number with Coverage 0% (pin isn't being used at all).
+        const PINNED_IDS: Record<string, { pinned: number; broken: number }> = {
+          "5193222733586324267": { pinned: 2, broken: 0 },
+          "7562955041576980258": { pinned: 2, broken: 1 },
+          "3350546850174482743": { pinned: 2, broken: 1 },
+          "7442192024002430332": { pinned: 2, broken: 0 },
+          "3939633309730011619": { pinned: 2, broken: 0 },
         };
         const pinData = PINNED_IDS[stmt.aggregatedFingerprintID];
         if (!pinData) {
@@ -213,7 +214,7 @@ export function makeStatementsColumns(
             <span style={{ color: "#c0c6d9", fontSize: "13px" }}>—</span>
           );
         }
-        const badgeStyle = (isInvalid: boolean): React.CSSProperties => ({
+        const pinnedBadge: React.CSSProperties = {
           display: "inline-flex",
           alignItems: "center",
           padding: "0 8px",
@@ -222,19 +223,28 @@ export function makeStatementsColumns(
           fontWeight: 600,
           height: "24px",
           whiteSpace: "nowrap",
-          backgroundColor: isInvalid ? "#ffe9eb" : "#e1ecff",
-          color: isInvalid ? "#cd2939" : "#0037a5",
-        });
+          backgroundColor: "#e1ecff",
+          color: "#0037a5",
+        };
+        const brokenStyle: React.CSSProperties = {
+          fontSize: "12px",
+          fontWeight: 600,
+          color: "#cd2939",
+          cursor: "help",
+        };
         return (
-          <span style={{ display: "inline-flex", gap: "6px", flexWrap: "wrap" }}>
-            {pinData.active > 0 && (
-              <span style={badgeStyle(false)}>
-                Pinned ({pinData.active})
+          <span style={{ display: "inline-flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+            {pinData.pinned > 0 && (
+              <span style={pinnedBadge}>
+                Pinned ({pinData.pinned})
               </span>
             )}
-            {pinData.invalid > 0 && (
-              <span style={badgeStyle(true)}>
-                Invalid pin ({pinData.invalid})
+            {pinData.broken > 0 && (
+              <span
+                style={brokenStyle}
+                title={`${pinData.broken} pinned plan${pinData.broken > 1 ? "s are" : " is"} not being used (Coverage 0%). Open the statement to investigate.`}
+              >
+                {pinData.broken} not in use
               </span>
             )}
           </span>
