@@ -742,7 +742,15 @@ export function PinnedPlansPage(): React.ReactElement {
                             </span>
                           }
                         >
-                          <span style={{ display: "inline-block", cursor: "help" }}>{inner}</span>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              cursor: "help",
+                              borderBottom: "1px dashed #cd2939",
+                            }}
+                          >
+                            {inner}
+                          </span>
                         </Tooltip>
                       );
                     }

@@ -414,12 +414,14 @@ export function makeExplainPlanColumns(
               cursor: broken ? "help" : "default",
             }}
           >
-            <span style={{ fontWeight: 600 }}>{cov}%</span>
-            {totalExecs > 0 && (
-              <span style={{ color: broken ? "#cd2939" : "#7e89a9", fontWeight: 400 }}>
-                {" "}({fmt(planExecs)} of {fmt(totalExecs)})
-              </span>
-            )}
+            <span style={{ borderBottom: broken ? "1px dashed #cd2939" : undefined }}>
+              <span style={{ fontWeight: 600 }}>{cov}%</span>
+              {totalExecs > 0 && (
+                <span style={{ color: broken ? "#cd2939" : "#7e89a9", fontWeight: 400 }}>
+                  {" "}({fmt(planExecs)} of {fmt(totalExecs)})
+                </span>
+              )}
+            </span>
           </span>
         );
         // Wrap the 0% cell in a Tooltip to explain the broken state.
