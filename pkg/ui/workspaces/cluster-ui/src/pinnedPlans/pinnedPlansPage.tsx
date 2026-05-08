@@ -711,15 +711,7 @@ export function PinnedPlansPage(): React.ReactElement {
                     {plan.statementFingerprint}
                   </Link>
                 </td>
-                <td
-                  style={{
-                    ...tdStyle,
-                    whiteSpace: "nowrap",
-                    backgroundColor: plan.coverage === 0 ? "#ffe9eb" : undefined,
-                    color: plan.coverage === 0 ? "#cd2939" : "#394455",
-                    fontWeight: plan.coverage === 0 ? 600 : 400,
-                  }}
-                >
+                <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
                   {(() => {
                     const total = mockTotalExecutions[plan.fingerprintID] ?? plan.executions;
                     const inner = (
@@ -730,8 +722,9 @@ export function PinnedPlansPage(): React.ReactElement {
                         </span>
                       </>
                     );
-                    // Wrap the 0% cell in a Tooltip to explain the broken state.
-                    // Other cells render plain.
+                    // 0% cells render the content as a red pill badge (rather
+                    // than washing the whole cell red). The dashed underline
+                    // sits on the text inside the badge as a tooltip cue.
                     if (plan.coverage === 0) {
                       return (
                         <Tooltip
@@ -745,11 +738,16 @@ export function PinnedPlansPage(): React.ReactElement {
                           <span
                             style={{
                               display: "inline-block",
+                              padding: "2px 8px",
+                              borderRadius: "3px",
+                              backgroundColor: "#ffe9eb",
+                              color: "#cd2939",
                               cursor: "help",
-                              borderBottom: "1px dashed #cd2939",
                             }}
                           >
-                            {inner}
+                            <span style={{ borderBottom: "1px dashed #cd2939" }}>
+                              {inner}
+                            </span>
                           </span>
                         </Tooltip>
                       );
