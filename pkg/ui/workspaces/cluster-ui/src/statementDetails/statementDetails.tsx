@@ -5,7 +5,7 @@
 
 import { cockroach } from "@cockroachlabs/crdb-protobuf-client";
 import { ArrowLeft } from "@cockroachlabs/icons";
-import { InlineAlert, Text } from "@cockroachlabs/ui-components";
+import { InlineAlert, Text, Tooltip } from "@cockroachlabs/ui-components";
 import { Col, Row, Tabs } from "antd";
 import classNames from "classnames/bind";
 import isNil from "lodash/isNil";
@@ -815,16 +815,23 @@ export function StatementDetails(
                     <SummaryCardItem
                       label="Plan pin status"
                       value={
-                        <span style={badgeStyle} title={tooltip}>
-                          {broken && (
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                              <line x1="12" y1="9" x2="12" y2="13" />
-                              <line x1="12" y1="17" x2="12.01" y2="17" />
-                            </svg>
-                          )}
-                          Pinned ({pd.pinned})
-                        </span>
+                        <Tooltip
+                          placement="top"
+                          content={
+                            <span style={{ fontSize: "14px", fontWeight: 400 }}>{tooltip}</span>
+                          }
+                        >
+                          <span style={badgeStyle}>
+                            {broken && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                <line x1="12" y1="9" x2="12" y2="13" />
+                                <line x1="12" y1="17" x2="12.01" y2="17" />
+                              </svg>
+                            )}
+                            Pinned ({pd.pinned})
+                          </span>
+                        </Tooltip>
                       }
                     />
                   );
