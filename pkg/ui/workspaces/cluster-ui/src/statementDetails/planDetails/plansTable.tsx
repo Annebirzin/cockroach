@@ -11,6 +11,7 @@ import { ColumnDescriptor, SortedTable } from "src/sortedtable";
 
 import { Anchor } from "../../anchor";
 import { IndexStatsLink } from "../../components/links/indexStatsLink";
+import { PinPermissionGate } from "../../pinnedPlans/pinPlanModal";
 import { Timestamp, Timezone } from "../../timestamp";
 import {
   Duration,
@@ -304,6 +305,7 @@ export function makeExplainPlanColumns(
   fingerprintTotalExecs?: number,
   onPin?: (gist: string) => void,
   onUnpin?: (gist: string) => void,
+  noPermission?: boolean,
 ): ColumnDescriptor<PlanHashStats>[] {
   const duration = (v: number) => Duration(v * 1e9);
   const count = (v: number) => v.toFixed(1);
@@ -311,6 +313,7 @@ export function makeExplainPlanColumns(
   const coverage = coverageByGist || new Map<string, number>();
   const execs = execsByGist || new Map<string, number>();
   const totalExecs = fingerprintTotalExecs ?? 0;
+  const blocked = !!noPermission;
   return [
     {
       name: "pin",
@@ -320,33 +323,37 @@ export function makeExplainPlanColumns(
         const isPinned = pinned.has(gist);
         return (
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isPinned) {
-                  onUnpin?.(gist);
-                } else {
-                  onPin?.(gist);
-                }
-              }}
-              title={isPinned ? "Unpin" : "Pin"}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "6px",
-                border: "1px solid #c0c6d9",
-                borderRadius: "4px",
-                backgroundColor: "white",
-                color: isPinned ? "#0055ff" : "#394455",
-                cursor: "pointer",
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 17v5" />
-                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned ? "currentColor" : "none"} />
-              </svg>
-            </button>
+            <PinPermissionGate noPermission={blocked}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (blocked) return;
+                  if (isPinned) {
+                    onUnpin?.(gist);
+                  } else {
+                    onPin?.(gist);
+                  }
+                }}
+                disabled={blocked}
+                title={blocked ? undefined : (isPinned ? "Unpin" : "Pin")}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "6px",
+                  border: `1px solid ${blocked ? "#e7eaf2" : "#c0c6d9"}`,
+                  borderRadius: "4px",
+                  backgroundColor: blocked ? "#f6f7f9" : "white",
+                  color: blocked ? "#c0c6d9" : (isPinned ? "#0055ff" : "#394455"),
+                  cursor: blocked ? "not-allowed" : "pointer",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 17v5" />
+                  <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned && !blocked ? "currentColor" : "none"} />
+                </svg>
+              </button>
+            </PinPermissionGate>
             <span
               style={{
                 display: "inline-flex",
@@ -380,7 +387,7 @@ export function makeExplainPlanColumns(
             </span>
           }
         >
-          <span style={{ whiteSpace: "nowrap" }}>Pin applied</span>
+          <span style={{ whiteSpace: "nowrap" }}>Pin applied rate</span>
         </Tooltip>
       ),
       cell: (item: PlanHashStats) => {

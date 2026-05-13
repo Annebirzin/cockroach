@@ -4,6 +4,7 @@
 // included in the /LICENSE file.
 
 import { ArrowLeft } from "@cockroachlabs/icons";
+import { Tooltip } from "@cockroachlabs/ui-components";
 import { Col, Row } from "antd";
 import classNames from "classnames/bind";
 import Long from "long";
@@ -39,7 +40,13 @@ import {
   makeExplainPlanColumns,
   PlanHashStats,
 } from "./plansTable";
-import { PinPlanModal, usePinPlanModal } from "../../pinnedPlans/pinPlanModal";
+import {
+  PinPermissionGate,
+  PinPlanModal,
+  runPinAction,
+  usePinDemoState,
+  usePinPlanModal,
+} from "../../pinnedPlans/pinPlanModal";
 
 const cx = classNames.bind(styles);
 
@@ -281,6 +288,12 @@ export function PlanDetails({
 
   const pinModal = usePinPlanModal();
 
+  // Error-state plumbing — see pinPlanModal.tsx for the shared helpers and
+  // spec.md §2.10 for the catalog of patterns. The same toast / modal-retry
+  // / permission-disabled behavior must apply on every pin/unpin surface.
+  const demoState = usePinDemoState();
+  const noPermission = demoState === "no-permission";
+
   const applyPin = useCallback((gist: string) => {
     setPinnedGists(prev => {
       const next = new Set(prev);
@@ -310,12 +323,12 @@ export function PlanDetails({
   }, []);
 
   const handlePin = useCallback((gist: string) => {
-    pinModal.requestPin(gist, () => applyPin(gist));
-  }, [pinModal, applyPin]);
+    pinModal.requestPin(gist, () => runPinAction("pin", gist, () => applyPin(gist), demoState));
+  }, [pinModal, applyPin, demoState]);
 
   const handleUnpin = useCallback((gist: string) => {
-    pinModal.requestUnpin(gist, () => applyUnpin(gist));
-  }, [pinModal, applyUnpin]);
+    pinModal.requestUnpin(gist, () => runPinAction("unpin", gist, () => applyUnpin(gist), demoState));
+  }, [pinModal, applyUnpin, demoState]);
 
   const handleDetails = (plan: PlanHashStats): void => {
     setPlan(plan);
@@ -408,6 +421,7 @@ function PlanTable({
   onPin,
   onUnpin,
 }: PlanTableProps): React.ReactElement {
+  const planTableDemoState = usePinDemoState();
   const columns = makeExplainPlanColumns(
     handleDetails,
     pinnedGists,
@@ -416,6 +430,7 @@ function PlanTable({
     fingerprintTotalExecs,
     onPin,
     onUnpin,
+    planTableDemoState === "no-permission",
   );
   return (
     <PlansSortedTable
@@ -457,6 +472,8 @@ function ExplainPlan({
   onPin,
   onUnpin,
 }: ExplainPlanProps): React.ReactElement {
+  const explainDemoState = usePinDemoState();
+  const noPermissionExplain = explainDemoState === "no-permission";
   const gist = plan.stats.plan_gists?.[0] || "";
   const isPinned = pinnedGists?.has(gist) || false;
   const coverage = isPinned ? (coverageByGist?.get(gist) ?? 100) : null;
@@ -500,55 +517,67 @@ function ExplainPlan({
             {isPinned ? "Pinned" : "Unpinned"}
           </span>
           {isPinned && coverage !== null && (
-            <span
-              title={
-                coverage === 0
-                  ? "This pinned plan is not being used. The optimizer is selecting a different plan for every execution."
-                  : coverage < 100
-                  ? `Pin sticks for ${coverage}% of executions; the optimizer falls back for the remaining ${100 - coverage}%.`
-                  : "Pin sticks for every execution of this fingerprint."
+            <Tooltip
+              placement="bottom"
+              content={
+                <span style={{ fontWeight: 400 }}>
+                  {coverage === 0
+                    ? "This pinned plan is not being used. The optimizer is selecting a different plan for every execution."
+                    : coverage < 100
+                    ? `Pin sticks for ${coverage}% of executions; the optimizer falls back for the remaining ${100 - coverage}%.`
+                    : "Pin sticks for every execution of this fingerprint."}
+                </span>
               }
+            >
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  fontSize: "12px",
+                  fontWeight: coverage === 0 ? 600 : 400,
+                  color: coverage === 0 ? "#cd2939" : "#475872",
+                  padding: coverage === 0 ? "2px 6px" : 0,
+                  borderRadius: coverage === 0 ? "3px" : 0,
+                  backgroundColor: coverage === 0 ? "#ffe9eb" : undefined,
+                  cursor: "help",
+                }}
+              >
+                Pin applied rate: {coverage}%
+                {totalExecs > 0 && (
+                  <span style={{ color: coverage === 0 ? "#cd2939" : "#7e89a9" }}>
+                    {" "}({planExecs.toLocaleString()} of {totalExecs.toLocaleString()})
+                  </span>
+                )}
+              </span>
+            </Tooltip>
+          )}
+          <PinPermissionGate noPermission={noPermissionExplain}>
+            <button
+              onClick={() => {
+                if (noPermissionExplain) return;
+                if (isPinned) onUnpin?.(gist); else onPin?.(gist);
+              }}
+              disabled={noPermissionExplain}
+              title={noPermissionExplain ? undefined : (isPinned ? "Unpin" : "Pin")}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "4px",
-                fontSize: "12px",
-                fontWeight: coverage === 0 ? 600 : 400,
-                color: coverage === 0 ? "#cd2939" : "#475872",
-                padding: coverage === 0 ? "2px 6px" : 0,
-                borderRadius: coverage === 0 ? "3px" : 0,
-                backgroundColor: coverage === 0 ? "#ffe9eb" : undefined,
-                cursor: "help",
+                justifyContent: "center",
+                padding: "6px",
+                border: `1px solid ${noPermissionExplain ? "#e7eaf2" : "#c0c6d9"}`,
+                borderRadius: "4px",
+                backgroundColor: noPermissionExplain ? "#f6f7f9" : "white",
+                color: noPermissionExplain ? "#c0c6d9" : (isPinned ? "#0055ff" : "#394455"),
+                cursor: noPermissionExplain ? "not-allowed" : "pointer",
               }}
             >
-              Pin applied: {coverage}%
-              {totalExecs > 0 && (
-                <span style={{ color: coverage === 0 ? "#cd2939" : "#7e89a9" }}>
-                  {" "}({planExecs.toLocaleString()} of {totalExecs.toLocaleString()})
-                </span>
-              )}
-            </span>
-          )}
-          <button
-            onClick={() => isPinned ? onUnpin?.(gist) : onPin?.(gist)}
-            title={isPinned ? "Unpin" : "Pin"}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "6px",
-              border: "1px solid #c0c6d9",
-              borderRadius: "4px",
-              backgroundColor: "white",
-              color: isPinned ? "#0055ff" : "#394455",
-              cursor: "pointer",
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 17v5" />
-              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned ? "currentColor" : "none"} />
-            </svg>
-          </button>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 17v5" />
+                <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isPinned && !noPermissionExplain ? "currentColor" : "none"} />
+              </svg>
+            </button>
+          </PinPermissionGate>
         </div>
       </div>
       <SqlBox value={explainPlan} size={SqlBoxSize.CUSTOM} />

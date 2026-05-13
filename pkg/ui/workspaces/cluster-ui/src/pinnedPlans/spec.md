@@ -186,6 +186,8 @@ A table listing every pinned plan across all statement fingerprints.
 ### 2.3 Drift Analysis Table *(out of scope for V1)*
 
 > **V1 Scope:** This entire section is **out of scope for V1**. Documented for future iteration; do not implement in the V1 release.
+>
+> **Code state:** The Drift Analysis tab, mock data, and table rendering exist in the prototype but are gated behind `const DRIFT_ENABLED = false;` near the top of `pinnedPlansPage.tsx`. The tab does not appear in the tab row, navigation to `?tab=drift` is clamped back to All pinned plans, and the render block is double-gated by the flag. Flip the flag to `true` to bring it back — no other changes required. The drift table's pin/unpin actions are already wired to the shared error-state helpers from §2.10.
 
 Surfaces alternative plans the optimizer would have chosen absent pinning.
 
@@ -292,6 +294,74 @@ Pin status column added to the main SQL Activity Statements table.
   - `cursor: help` with tooltip surfacing the breakdown ("2 pinned plans" or "2 pinned plans, 1 not in use. Click into the statement to investigate.")
   - Shows em-dash (—) for statements without pinned plans
 - [x] Column sortable with three-tier weighting: broken (red) > healthy (blue) > unpinned, so problem rows surface at the top when sorted descending
+
+### 2.10 Error states
+
+All error states reuse existing cluster-ui patterns — no net-new components. The four patterns cover the production failure modes for pin/unpin operations and are demonstrable in the prototype via `?demoState=…` URL flags so reviewers can step through each.
+
+**Vocabulary.** "Error" describes a failed *operation* (pin/unpin call, list fetch). "Broken pin" describes a *healthy operation with an unhealthy result* (pin exists but Pin applied rate = 0%) and is rendered as a red 0% badge — see 2.2 / 2.7 / 2.9. The two are intentionally distinct in copy and color so users can tell "the action failed" apart from "the pin itself isn't working."
+
+#### 2.10.1 Action toast (success and failure)
+
+Every pin/unpin attempt that completes the modal flow surfaces a transient toast. Matches the existing terminate-session and Insights `indexActionBtn` patterns.
+
+- [x] Component: `message.success` / `message.error` from `antd`
+- [x] **Success copy**: `Plan pinned.` / `Plan unpinned.`
+- [x] **Failure copy**: `Couldn't {pin|unpin} plan {gist}. Try again or check permissions.`
+- [x] Auto-dismiss (antd default ~3s); user can click to dismiss early
+- [x] Demo trigger: `?demoState=fail-action`
+- [ ] Production trigger: any non-2xx response from the optimizer-hint API except validation/staleness errors (those route to 2.10.2)
+
+#### 2.10.2 Modal-level inline retry
+
+When the failure carries an actionable, single-cause reason (invalid plan, hint store unreachable, permission lost mid-session), the modal stays open and shows the reason inline so the user can read it and retry without losing context. Matches the Insights `indexActionBtn` modal pattern.
+
+- [x] Component: `<InlineAlert intent="danger" title={errorMessage}>` rendered inside `PinPlanModal` between the description and the footer
+- [x] Modal does **not** auto-close on failure (controlled by `usePinPlanModal` resolving the onConfirm return value — string = failure, void = success)
+- [x] Primary CTA label flips to **Try pinning again** / **Try unpinning again** while the alert is shown
+- [x] Cancel still dismisses the modal cleanly
+- [x] **Failure copy examples**:
+  - Pin: `Couldn't pin plan {gist}. The plan is no longer valid (an index it references was dropped).`
+  - Unpin: `Couldn't unpin plan {gist}. The optimizer hint store is unreachable. Try again in a moment.`
+- [x] Demo trigger: `?demoState=fail-modal`
+- [ ] Production trigger: validation errors (invalid plan_gist), transient backend errors that benefit from a same-context retry
+
+#### 2.10.3 List-load failure (page-level)
+
+When the All pinned plans list itself fails to fetch, the entire table is replaced by a top-of-page alert with a Retry affordance. Matches `statementInsightsView` and the standard `<Loading>` component error path.
+
+- [x] Component: `<InlineAlert intent="danger" title="Failed to load pinned plans" description="The cluster returned an error while fetching pinned plans. Retry">`
+- [x] "Retry" rendered as an inline link (`#0055ff`) inside the alert description; click re-runs the fetch (in the prototype, reloads the page)
+- [x] Renders in place of the table — count line, sort headers, and pager are hidden
+- [x] Demo trigger: `?demoState=fail-load`
+- [ ] Production trigger: any failure resolving the pinned-plans system table query, including permission-denied at the read level (user can't see *any* hints)
+
+#### 2.10.4 Permission-denied affordance
+
+Users without the `MANAGEPLAN` system privilege can read pinned plans but cannot pin or unpin. Every pin/unpin button is rendered disabled with a Tooltip explaining what's missing. The list itself remains readable.
+
+- [x] Button: disabled state (`#f6f7f9` bg, `#e7eaf2` border, `#c0c6d9` icon, `cursor: not-allowed`)
+- [x] Wrapped in `<Tooltip placement="right" content="…">` from `@cockroachlabs/ui-components`
+- [x] **Tooltip copy**: `You need the MANAGEPLAN system privilege to pin or unpin plans. Contact your cluster admin.`
+- [x] Modal never opens; toasts never fire (no operation is attempted)
+- [x] Demo trigger: `?demoState=no-permission`
+- [ ] Production trigger: backend response indicating the current user lacks `MANAGEPLAN`
+
+#### Surface coverage
+
+All four patterns are wired on every pin/unpin surface in the v1 scope. The shared helpers in `cluster-ui/src/pinnedPlans/pinPlanModal.tsx` (`usePinDemoState`, `runPinAction`, `PinPermissionGate`) keep behavior identical across surfaces — every pin/unpin attempt produces the same toast copy, the same modal retry behavior, and the same disabled affordance.
+
+| Surface | Toast | Modal retry | Disabled |
+|---|---|---|---|
+| All pinned plans table (2.2) | ✅ | ✅ | ✅ |
+| Explain Plan table (2.7) | ✅ | ✅ | ✅ |
+| Explain Plan detail header (2.8) | ✅ | ✅ | ✅ |
+| Drift Analysis — pinned-gist button (2.3) — *future, gated by `DRIFT_ENABLED`* | ✅ | ✅ | ✅ |
+| Drift Analysis — candidate-gist button (2.3) — *future, gated by `DRIFT_ENABLED`* | ✅ | ✅ | ✅ |
+
+The drift surfaces are wired but hidden behind the `DRIFT_ENABLED` flag — when the flag flips on, all four error patterns work without further changes.
+
+List-load failure (2.10.3) only applies to surfaces that fetch the pinned-plans dataset directly — currently just the All pinned plans tab. Other surfaces inherit the existing `<Loading>` / SortedTable error rendering for fetch failures.
 
 ---
 
