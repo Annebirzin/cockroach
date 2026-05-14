@@ -9,7 +9,7 @@
 | **Prototype Branch** | [`anne/plan-pinning-prototype`](https://github.com/Annebirzin/cockroach/tree/anne/plan-pinning-prototype) |
 | **Source Code** | `pkg/ui/workspaces/cluster-ui/src/pinnedPlans/` |
 | **Target Location** | `pkg/ui/workspaces/cluster-ui/src/` (cluster-ui) + `pkg/ui/workspaces/db-console/src/views/sqlActivity/` |
-| **Date** | 2026-04-22 (updated) |
+| **Date** | 2026-05-13 (updated) |
 
 ### Running the Prototype
 
@@ -310,6 +310,11 @@ Every pin/unpin attempt that completes the modal flow surfaces a transient toast
 - [x] **Failure copy**: `Couldn't {pin|unpin} plan {gist}. Try again or check permissions.`
 - [x] Auto-dismiss (antd default ~3s); user can click to dismiss early
 - [x] Demo trigger: `?demoState=fail-action`
+- [x] Figma frames:
+  - [01 — Unpin action toast (success)](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=118-51)
+  - [02 — Unpin action toast (failure)](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=119-51)
+  - [10 — Pin action toast (success)](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=163-51)
+  - [11 — Pin action toast (failure)](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=164-51)
 - [ ] Production trigger: any non-2xx response from the optimizer-hint API except validation/staleness errors (those route to 2.10.2)
 
 #### 2.10.2 Modal-level inline retry
@@ -324,6 +329,11 @@ When the failure carries an actionable, single-cause reason (invalid plan, hint 
   - Pin: `Couldn't pin plan {gist}. The plan is no longer valid (an index it references was dropped).`
   - Unpin: `Couldn't unpin plan {gist}. The optimizer hint store is unreachable. Try again in a moment.`
 - [x] Demo trigger: `?demoState=fail-modal`
+- [x] Figma frames:
+  - [03 — Unpin confirmation modal (base)](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=173-51)
+  - [04 — Unpin confirmation modal (inline error)](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=117-51)
+  - [08 — Pin confirmation modal (base)](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=161-51)
+  - [09 — Pin confirmation modal (inline error)](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=162-51)
 - [ ] Production trigger: validation errors (invalid plan_gist), transient backend errors that benefit from a same-context retry
 
 #### 2.10.3 List-load failure (page-level)
@@ -334,6 +344,7 @@ When the All pinned plans list itself fails to fetch, the entire table is replac
 - [x] "Retry" rendered as an inline link (`#0055ff`) inside the alert description; click re-runs the fetch (in the prototype, reloads the page)
 - [x] Renders in place of the table — count line, sort headers, and pager are hidden
 - [x] Demo trigger: `?demoState=fail-load`
+- [x] Figma frame: [05 — List-load failure](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=133-51)
 - [ ] Production trigger: any failure resolving the pinned-plans system table query, including permission-denied at the read level (user can't see *any* hints)
 
 #### 2.10.4 Permission-denied affordance
@@ -345,6 +356,9 @@ Users without the `MANAGEPLAN` system privilege can read pinned plans but cannot
 - [x] **Tooltip copy**: `You need the MANAGEPLAN system privilege to pin or unpin plans. Contact your cluster admin.`
 - [x] Modal never opens; toasts never fire (no operation is attempted)
 - [x] Demo trigger: `?demoState=no-permission`
+- [x] Figma frames:
+  - [06 — Permission denied (table)](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=174-51)
+  - [07 — Permission denied (Tooltip)](https://www.figma.com/design/xVVNu8htiiw2KWuGnMiPnA?node-id=115-51)
 - [ ] Production trigger: backend response indicating the current user lacks `MANAGEPLAN`
 
 #### Surface coverage
