@@ -32,6 +32,8 @@ import { runPinAction } from "./runPinAction";
 import styles from "./pinnedPlansPage.module.scss";
 import { usePinDemoState } from "./usePinDemoState";
 
+const cx = classNames.bind(styles);
+
 // Table styles matching the SortedTable / statement fingerprint table
 const tableStyle: React.CSSProperties = {
   width: "fit-content",
