@@ -11,6 +11,11 @@ import { Helmet } from "react-helmet";
 
 import { Pagination, ResultsPerPageLabel } from "../pagination";
 import {
+  ColumnDescriptor,
+  SortedTable,
+  SortSetting,
+} from "../sortedtable";
+import {
   PinPermissionGate,
   PinPlanModal,
   runPinAction,
@@ -113,7 +118,36 @@ const mockTotalExecutions: Record<string, number> = {
 // `coverage` = % of fingerprint executions that used this pinned plan.
 //   100 = pin always wins. 0 = pin never used (e.g. plan no longer applicable).
 //   Anything in between = pin only sticks for some executions.
-const mockPinnedPlans = [
+// Shape of a single pinned plan row. Mirrors what the backend will eventually
+// return from /api/v2/pinned_plans. Documenting the type explicitly here so
+// the column descriptors below get type-checked and the BE engineer has a
+// concrete contract to implement against.
+export interface PinnedPlan {
+  /** Statement fingerprint (parameterized SQL string). */
+  statementFingerprint: string;
+  /** Stable hash for this fingerprint; links to the statement detail page. */
+  fingerprintID: string;
+  /** Database the plan was created in. */
+  database: string;
+  /** plan_gist — opaque hash identifying this specific execution plan. */
+  gist: string;
+  /** Username of the actor who pinned the plan. */
+  pinnedBy: string;
+  /** When the pin was created. */
+  pinnedAt: Date;
+  /** Total executions of THIS pinned plan in the time window. */
+  executions: number;
+  /** Subset of executions where the pin overrode the optimizer's choice. */
+  overridden: number;
+  /** Pin applied rate, 0–100. % of fingerprint executions that used this plan. */
+  coverage: number;
+  /** Average per-execution latency in seconds. */
+  avgLatency: number;
+  /** Most recent execution of this pinned plan. */
+  lastExecTime: Date;
+}
+
+const mockPinnedPlans: PinnedPlan[] = [
   // INSERT INTO rides — 2 pinned plans, both well-utilized
   {
     statementFingerprint:
@@ -1236,8 +1270,11 @@ function sortData<T>(data: T[], sortConfig: SortConfig | null, getters: Record<s
 
 export function PinnedPlansPage(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
-  const [overviewSort, setOverviewSort] = useState<SortConfig | null>({
-    column: "pinnedAt",
+  // Overview sort is driven by SortedTable, which uses cluster-ui's SortSetting
+  // shape. Drift and audit tabs continue to use the local SortConfig pattern
+  // for now; they'd migrate similarly when this prototype is fully refactored.
+  const [overviewSort, setOverviewSort] = useState<SortSetting>({
+    columnTitle: "pinnedAt",
     ascending: false,
   });
   const [driftSort, setDriftSort] = useState<SortConfig | null>(null);
@@ -1303,12 +1340,13 @@ export function PinnedPlansPage(): React.ReactElement {
     });
   };
 
-  // Sort wrapper for the overview table that also resets pagination to page 1
-  // so the user always lands on the first page after re-sorting.
-  const setOverviewSortAndResetPage: React.Dispatch<React.SetStateAction<SortConfig | null>> = (s) => {
-    setOverviewSort(s);
+  // SortedTable invokes this with the new SortSetting whenever the user
+  // clicks a header. We piggy-back to reset pagination to page 1 so the
+  // user always lands on the first page after re-sorting.
+  const handleOverviewSortChange = useCallback((next: SortSetting) => {
+    setOverviewSort(next);
     setOverviewPage(1);
-  };
+  }, []);
 
   // Filter out drift in v1; clamp activeTab back to overview if the user
    // arrived via a stale deep link to ?tab=drift.
@@ -1405,230 +1443,226 @@ export function PinnedPlansPage(): React.ReactElement {
           />
         </div>
       )}
-      {visibleActiveTab === "overview" && !loadFailed && (() => {
-        const sorted = sortData(mockPinnedPlans, overviewSort, {
-          statement: p => p.statementFingerprint,
-          gist: p => p.gist,
-          pinnedBy: p => p.pinnedBy,
-          pinnedAt: p => p.pinnedAt.getTime(),
-          coverage: p => p.coverage,
-          // Sort by override rate (overridden / executions). Rows with no
-          // executions sort to the bottom in either direction by returning
-          // -1 — the rate is undefined for them.
-          overrideRate: p => (p.executions > 0 ? p.overridden / p.executions : -1),
-          avgLatency: p => p.avgLatency,
-          lastExecTime: p => p.lastExecTime.getTime(),
-        });
-        const total = sorted.length;
-        const totalPages = Math.max(1, Math.ceil(total / overviewPageSize));
-        const page = Math.min(Math.max(1, overviewPage), totalPages);
-        const start = (page - 1) * overviewPageSize;
-        const end = Math.min(start + overviewPageSize, total);
-        const slice = sorted.slice(start, end);
-        return (
+      {visibleActiveTab === "overview" && !loadFailed && (
         <div style={{ overflowX: "auto" }}>
-        <div style={{ fontSize: "14px", color: "#475872", marginBottom: "12px", fontFamily }}>
-          <ResultsPerPageLabel
-            pagination={{ pageSize: overviewPageSize, current: page, total }}
-            pageName="pinned plans"
-          />
-        </div>
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={{ ...thStyle, paddingLeft: "24px" }}>Plan pin status</th>
-              <SortableHeader label="Plan gist" column="gist" sortConfig={overviewSort} onSort={handleSort(setOverviewSortAndResetPage)} />
-              <SortableHeader label="Statement" column="statement" sortConfig={overviewSort} onSort={handleSort(setOverviewSortAndResetPage)} />
-              <SortableHeader
-                label="Pin applied rate"
-                column="coverage"
-                sortConfig={overviewSort}
-                onSort={handleSort(setOverviewSortAndResetPage)}
-                tooltip={
-                  <span style={{ fontWeight: 400 }}>
-                    Percentage of fingerprint executions where the optimizer used this pinned plan. 0% means the pin isn't sticking. The optimizer is choosing a different plan every time.
-                  </span>
-                }
-              />
-              <SortableHeader
-                label="Pin override rate"
-                column="overrideRate"
-                sortConfig={overviewSort}
-                onSort={handleSort(setOverviewSortAndResetPage)}
-                tooltip={
-                  <span style={{ fontWeight: 400 }}>
-                    Percentage of pinned-plan executions where the pin overrode the optimizer's choice. Higher means the pin is actively protecting against drift. 0% means the optimizer would have picked this plan anyway (the pin is redundant).
-                  </span>
-                }
-              />
-              <SortableHeader label="Avg latency" column="avgLatency" sortConfig={overviewSort} onSort={handleSort(setOverviewSortAndResetPage)} style={{ textAlign: "right" }} />
-              <SortableHeader label="Pinned by" column="pinnedBy" sortConfig={overviewSort} onSort={handleSort(setOverviewSortAndResetPage)} />
-              <SortableHeader label="Pinned at" column="pinnedAt" sortConfig={overviewSort} onSort={handleSort(setOverviewSortAndResetPage)} />
-              <SortableHeader label="Last executed" column="lastExecTime" sortConfig={overviewSort} onSort={handleSort(setOverviewSortAndResetPage)} style={{ textAlign: "right" }} />
-            </tr>
-          </thead>
-          <tbody>
-            {slice.map((plan, i) => (
-              <tr key={i} style={rowStyle}>
-                <td style={tdFirstStyle}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    {(() => {
-                      const isUnpinned = unpinnedOverview.has(plan.gist);
-                      return (
-                        <PinPermissionGate noPermission={noPermission}>
-                          <button
-                            onClick={() => {
-                              if (noPermission) return;
-                              showPinModal(isUnpinned ? "pin" : "unpin", plan.gist, "overview");
-                            }}
-                            disabled={noPermission}
-                            title={noPermission ? undefined : (isUnpinned ? "Pin" : "Unpin")}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              padding: "6px",
-                              border: `1px solid ${noPermission ? "#e7eaf2" : "#c0c6d9"}`,
-                              borderRadius: "4px",
-                              backgroundColor: noPermission ? "#f6f7f9" : "white",
-                              color: noPermission
-                                ? "#c0c6d9"
-                                : (isUnpinned ? "#394455" : "#0055ff"),
-                              cursor: noPermission ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 17v5" />
-                              <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isUnpinned || noPermission ? "none" : "currentColor"} />
-                            </svg>
-                          </button>
-                        </PinPermissionGate>
-                      );
-                    })()}
-                    {unpinnedOverview.has(plan.gist) ? (
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          padding: "0 8px",
-                          borderRadius: "3px",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          height: "28px",
-                          whiteSpace: "nowrap",
-                          backgroundColor: "#f0f2f5",
-                          color: "#475872",
-                        }}
-                      >
-                        Unpinned
-                      </span>
-                    ) : (
-                      <PlanPinBadge />
-                    )}
-                  </div>
-                </td>
-                <td style={tdStyle}>
+          <div style={{ fontSize: "14px", color: "#475872", marginBottom: "12px", fontFamily }}>
+            <ResultsPerPageLabel
+              pagination={{
+                pageSize: overviewPageSize,
+                current: overviewPage,
+                total: mockPinnedPlans.length,
+              }}
+              pageName="pinned plans"
+            />
+          </div>
+          <SortedTable<PinnedPlan>
+            data={mockPinnedPlans}
+            sortSetting={overviewSort}
+            onChangeSortSetting={handleOverviewSortChange}
+            pagination={{ current: overviewPage, pageSize: overviewPageSize }}
+            columns={[
+              {
+                name: "pinStatus",
+                title: "Plan pin status",
+                cell: (plan: PinnedPlan) => {
+                  const isUnpinned = unpinnedOverview.has(plan.gist);
+                  return (
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <PinPermissionGate noPermission={noPermission}>
+                        <button
+                          onClick={() => {
+                            if (noPermission) return;
+                            showPinModal(isUnpinned ? "pin" : "unpin", plan.gist, "overview");
+                          }}
+                          disabled={noPermission}
+                          title={noPermission ? undefined : (isUnpinned ? "Pin" : "Unpin")}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: "6px",
+                            border: `1px solid ${noPermission ? "#e7eaf2" : "#c0c6d9"}`,
+                            borderRadius: "4px",
+                            backgroundColor: noPermission ? "#f6f7f9" : "white",
+                            color: noPermission ? "#c0c6d9" : (isUnpinned ? "#394455" : "#0055ff"),
+                            cursor: noPermission ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 17v5" />
+                            <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" fill={isUnpinned || noPermission ? "none" : "currentColor"} />
+                          </svg>
+                        </button>
+                      </PinPermissionGate>
+                      {isUnpinned ? (
+                        <span style={{
+                          display: "inline-flex", alignItems: "center", padding: "0 8px",
+                          borderRadius: "3px", fontSize: "12px", fontWeight: 600, height: "28px",
+                          whiteSpace: "nowrap", backgroundColor: "#f0f2f5", color: "#475872",
+                        }}>
+                          Unpinned
+                        </span>
+                      ) : (
+                        <PlanPinBadge />
+                      )}
+                    </div>
+                  );
+                },
+              },
+              {
+                name: "gist",
+                title: "Plan gist",
+                sort: (plan: PinnedPlan) => plan.gist,
+                cell: (plan: PinnedPlan) => (
                   <Link to={`/statement/${encodeURIComponent(plan.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
                     {plan.gist.length > 24 ? plan.gist.slice(0, 24) + "..." : plan.gist}
                   </Link>
-                </td>
-                <td style={tdStyle}>
+                ),
+              },
+              {
+                name: "statement",
+                title: "Statement",
+                sort: (plan: PinnedPlan) => plan.statementFingerprint,
+                cell: (plan: PinnedPlan) => (
                   <Link to={`/statement/${encodeURIComponent(plan.fingerprintID)}?appNames=movr&from=pinned-plans`} className="pp-link-mono">
                     {plan.statementFingerprint}
                   </Link>
-                </td>
-                <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
-                  {(() => {
-                    const total = mockTotalExecutions[plan.fingerprintID] ?? plan.executions;
-                    const inner = (
-                      <>
-                        <span style={{ fontWeight: 600 }}>{plan.coverage}%</span>
-                        <span style={{ color: plan.coverage === 0 ? "#cd2939" : "#7e89a9" }}>
-                          {" "}({abbrev(plan.executions)} of {abbrev(total)})
-                        </span>
-                      </>
-                    );
-                    // 0% cells render the content as a red pill badge (rather
-                    // than washing the whole cell red). The dashed underline
-                    // sits on the text inside the badge as a tooltip cue.
-                    if (plan.coverage === 0) {
-                      return (
-                        <Tooltip
-                          placement="top"
-                          content={
-                            <span style={{ fontSize: "14px", fontWeight: 400 }}>
-                              This pinned plan is not being used. The optimizer is choosing a different plan for every execution.
-                            </span>
-                          }
-                        >
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "2px 8px",
-                              borderRadius: "3px",
-                              backgroundColor: "#ffe9eb",
-                              color: "#cd2939",
-                              cursor: "help",
-                            }}
-                          >
-                            <span style={{ borderBottom: "1px dashed #cd2939" }}>
-                              {inner}
-                            </span>
-                          </span>
-                        </Tooltip>
-                      );
+                ),
+              },
+              {
+                name: "coverage",
+                title: (
+                  <Tooltip
+                    style="tableTitle"
+                    placement="bottom"
+                    content={
+                      <span style={{ fontWeight: 400 }}>
+                        Percentage of fingerprint executions where the optimizer used this pinned plan. 0% means the pin isn't sticking. The optimizer is choosing a different plan every time.
+                      </span>
                     }
-                    return inner;
-                  })()}
-                </td>
-                <td style={{ ...tdStyle, whiteSpace: "nowrap", color: "#394455" }}>
-                  {plan.executions === 0 ? (
-                    <span style={{ color: "#c0c6d9" }}>—</span>
-                  ) : (
-                    (() => {
-                      const rate = Math.round((plan.overridden / plan.executions) * 100);
-                      return (
-                        <>
-                          <span style={{ fontWeight: 600 }}>{rate}%</span>
-                          <span style={{ color: "#7e89a9" }}>
-                            {" "}({abbrev(plan.overridden)} of {abbrev(plan.executions)})
+                  >
+                    Pin applied rate
+                  </Tooltip>
+                ),
+                sort: (plan: PinnedPlan) => plan.coverage,
+                cell: (plan: PinnedPlan) => {
+                  const total = mockTotalExecutions[plan.fingerprintID] ?? plan.executions;
+                  const inner = (
+                    <>
+                      <span style={{ fontWeight: 600 }}>{plan.coverage}%</span>
+                      <span style={{ color: plan.coverage === 0 ? "#cd2939" : "#7e89a9" }}>
+                        {" "}({abbrev(plan.executions)} of {abbrev(total)})
+                      </span>
+                    </>
+                  );
+                  if (plan.coverage === 0) {
+                    return (
+                      <Tooltip
+                        placement="top"
+                        content={
+                          <span style={{ fontSize: "14px", fontWeight: 400 }}>
+                            This pinned plan is not being used. The optimizer is choosing a different plan for every execution.
                           </span>
-                        </>
-                      );
-                    })()
-                  )}
-                </td>
-                <td style={{ ...tdStyle, textAlign: "right" }}>{formatDuration(plan.avgLatency)}</td>
-                <td style={tdStyle}>{plan.pinnedBy}</td>
-                <td style={tdStyle}>
-                  {plan.pinnedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                </td>
-                <td style={{ ...tdStyle, textAlign: "right" }}>
-                  {plan.lastExecTime.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
-                  {plan.lastExecTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div className="pp-pager">
-          <Pagination
-            pageSize={overviewPageSize}
-            current={page}
-            total={total}
-            onChange={(current, pageSize) => {
-              setOverviewPage(current);
-              if (pageSize) setOverviewPageSize(pageSize);
-            }}
-            onShowSizeChange={(current, pageSize) => {
-              setOverviewPage(current);
-              setOverviewPageSize(pageSize);
-            }}
+                        }
+                      >
+                        <span style={{
+                          display: "inline-block", padding: "2px 8px", borderRadius: "3px",
+                          backgroundColor: "#ffe9eb", color: "#cd2939", cursor: "help",
+                        }}>
+                          <span style={{ borderBottom: "1px dashed #cd2939" }}>{inner}</span>
+                        </span>
+                      </Tooltip>
+                    );
+                  }
+                  return <span style={{ whiteSpace: "nowrap" }}>{inner}</span>;
+                },
+              },
+              {
+                name: "overrideRate",
+                title: (
+                  <Tooltip
+                    style="tableTitle"
+                    placement="bottom"
+                    content={
+                      <span style={{ fontWeight: 400 }}>
+                        Percentage of pinned-plan executions where the pin overrode the optimizer's choice. Higher means the pin is actively protecting against drift. 0% means the optimizer would have picked this plan anyway (the pin is redundant).
+                      </span>
+                    }
+                  >
+                    Pin override rate
+                  </Tooltip>
+                ),
+                // Rows with no executions sort to the bottom in either direction
+                // by returning -1 — the rate is undefined for them.
+                sort: (plan: PinnedPlan) => (plan.executions > 0 ? plan.overridden / plan.executions : -1),
+                cell: (plan: PinnedPlan) => {
+                  if (plan.executions === 0) {
+                    return <span style={{ color: "#c0c6d9" }}>—</span>;
+                  }
+                  const rate = Math.round((plan.overridden / plan.executions) * 100);
+                  return (
+                    <span style={{ whiteSpace: "nowrap", color: "#394455" }}>
+                      <span style={{ fontWeight: 600 }}>{rate}%</span>
+                      <span style={{ color: "#7e89a9" }}>
+                        {" "}({abbrev(plan.overridden)} of {abbrev(plan.executions)})
+                      </span>
+                    </span>
+                  );
+                },
+              },
+              {
+                name: "avgLatency",
+                title: "Avg latency",
+                titleAlign: "right",
+                sort: (plan: PinnedPlan) => plan.avgLatency,
+                cell: (plan: PinnedPlan) => (
+                  <span style={{ display: "block", textAlign: "right" }}>{formatDuration(plan.avgLatency)}</span>
+                ),
+              },
+              {
+                name: "pinnedBy",
+                title: "Pinned by",
+                sort: (plan: PinnedPlan) => plan.pinnedBy,
+                cell: (plan: PinnedPlan) => plan.pinnedBy,
+              },
+              {
+                name: "pinnedAt",
+                title: "Pinned at",
+                sort: (plan: PinnedPlan) => plan.pinnedAt.getTime(),
+                cell: (plan: PinnedPlan) =>
+                  plan.pinnedAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+              },
+              {
+                name: "lastExecTime",
+                title: "Last executed",
+                titleAlign: "right",
+                sort: (plan: PinnedPlan) => plan.lastExecTime.getTime(),
+                cell: (plan: PinnedPlan) => (
+                  <span style={{ display: "block", textAlign: "right" }}>
+                    {plan.lastExecTime.toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
+                    {plan.lastExecTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                ),
+              },
+            ]}
           />
+          <div className="pp-pager">
+            <Pagination
+              pageSize={overviewPageSize}
+              current={overviewPage}
+              total={mockPinnedPlans.length}
+              onChange={(current, pageSize) => {
+                setOverviewPage(current);
+                if (pageSize) setOverviewPageSize(pageSize);
+              }}
+              onShowSizeChange={(current, pageSize) => {
+                setOverviewPage(current);
+                setOverviewPageSize(pageSize);
+              }}
+            />
+          </div>
         </div>
-        </div>
-        );
-      })()}
+      )}
 
       {/* === Drift Analysis === (gated: out of scope for v1, see DRIFT_ENABLED) */}
       {DRIFT_ENABLED && activeTab === "drift" && (
