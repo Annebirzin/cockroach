@@ -1,0 +1,139 @@
+// Copyright 2026 The Cockroach Authors.
+//
+// Use of this software is governed by the CockroachDB Software License
+// included in the /LICENSE file.
+
+@import "src/core/index.module";
+
+// =============================================================================
+// Plan Pinning page styles
+// =============================================================================
+//
+// Most of the page renders through SortedTable (which has its own SCSS module),
+// so this file is intentionally small. It owns:
+//   - Link styles for in-table fingerprint and gist links (.pp-link, .pp-link-mono)
+//   - Vertical-centering fixes for the antd page-size selector inside our
+//     Pagination wrapper (.pp-pager)
+//   - Hover state for the inner pill tabs (.pp-pill-tab)
+//   - Table styles still used by the prototype Drift Analysis and Audit Log
+//     tables (those will move to SortedTable in a follow-up; until then they
+//     share a single class set with the deleted overview table for parity).
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// In-cell links
+// -----------------------------------------------------------------------------
+
+.pp-link {
+  color: $colors--neutral-7;
+  text-decoration: none;
+
+  &:hover {
+    color: $colors--primary-blue-3;
+    text-decoration: underline;
+  }
+}
+
+.pp-link-mono {
+  font-family: $font-family--monospace;
+  font-size: 12px;
+  color: $colors--neutral-8;
+  white-space: nowrap;
+  text-decoration: none;
+  display: block;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &:hover {
+    color: $colors--primary-blue-3;
+    text-decoration: underline;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Pager (antd Pagination wrapper) — vertically center the size selector
+// -----------------------------------------------------------------------------
+
+.pp-pager {
+  // antd Pagination renders as a <ul>; inline-flex pulls all children
+  // (including the size-changer Select) onto the same baseline as the
+  // page-number buttons. Without this the Select renders ~3px too high.
+  :global(.ant-pagination) {
+    display: inline-flex;
+    align-items: center;
+  }
+  :global(.ant-pagination-options) {
+    margin-left: 8px;
+  }
+  :global(.ant-pagination-options-size-changer.ant-select) {
+    vertical-align: middle;
+    margin-top: 0;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Inner pill tabs (All pinned plans / Audit log)
+// -----------------------------------------------------------------------------
+
+.pp-pill-tab:hover {
+  background-color: $colors--neutral-2;
+}
+
+// -----------------------------------------------------------------------------
+// Prototype tables (drift, audit) — to be removed when those tabs migrate to
+// SortedTable. Mirrors the previous inline JS style objects so behavior is
+// unchanged.
+// -----------------------------------------------------------------------------
+
+.pp-table {
+  width: fit-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-family: $font-family--base;
+  font-weight: 400;
+  line-height: 22px;
+  font-size: 14px;
+  color: $colors--neutral-7;
+}
+
+.pp-th {
+  padding: 11px 16px 11px 8px;
+  text-align: left;
+  font-size: 14px;
+  color: $colors--neutral-6;
+  background-color: $colors--neutral-0;
+  border-bottom: 1px solid $colors--neutral-3;
+  white-space: nowrap;
+  font-family: $font-family--bold;
+  font-weight: normal;
+}
+
+.pp-th-first {
+  @extend .pp-th;
+  padding-left: 24px;
+}
+
+.pp-td {
+  padding: 8px;
+  border: none;
+  font-family: $font-family--base;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 22px;
+  letter-spacing: 0.3px;
+  color: $colors--neutral-7;
+  vertical-align: middle;
+}
+
+.pp-td-first {
+  @extend .pp-td;
+  padding-left: 24px;
+}
+
+.pp-row {
+  height: 70px;
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid $colors--neutral-3;
+  background-color: $colors--neutral-0;
+}

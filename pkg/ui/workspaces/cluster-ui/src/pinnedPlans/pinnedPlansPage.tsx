@@ -4,6 +4,7 @@
 // included in the /LICENSE file.
 
 import { InlineAlert, Tooltip } from "@cockroachlabs/ui-components";
+import classNames from "classnames/bind";
 import React, { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -25,7 +26,10 @@ import {
 } from "./pinnedPlans.fixture";
 import { PinPlanModal, usePinPlanModal } from "./pinPlanModal";
 import { runPinAction } from "./runPinAction";
+import styles from "./pinnedPlansPage.module.scss";
 import { usePinDemoState } from "./usePinDemoState";
+
+const cx = classNames.bind(styles);
 
 // Font family matching the DB Console SortedTable
 const fontFamily = "SourceSansPro-Regular, Source Sans Pro, sans-serif";
@@ -334,17 +338,6 @@ export function PinnedPlansPage(): React.ReactElement {
   return (
     <div style={{ paddingRight: "24px" }}>
       <Helmet title="Plan Pinning" />
-      <style>{`
-        .pp-link { color: #394455; text-decoration: none; }
-        .pp-link:hover { color: #0055ff; text-decoration: underline; }
-        .pp-link-mono { font-family: RobotoMono-Medium, Roboto Mono, monospace; font-size: 12px; color: #242A35; white-space: nowrap; text-decoration: none; display: block; max-width: 250px; overflow: hidden; text-overflow: ellipsis; }
-        .pp-link-mono:hover { color: #0055ff; text-decoration: underline; }
-        /* Vertically center the antd page-size selector with the page buttons. */
-        .pp-pager .ant-pagination { display: inline-flex; align-items: center; }
-        .pp-pager .ant-pagination-options { margin-left: 8px; }
-        .pp-pager .ant-pagination-options-size-changer.ant-select { vertical-align: middle; margin-top: 0; }
-        .pp-pill-tab:hover { background-color: #f0f2f5; }
-      `}</style>
 
       {/* Tabs */}
       <div style={{ marginBottom: "16px", display: "flex", gap: "6px", alignItems: "center" }}>
@@ -353,7 +346,7 @@ export function PinnedPlansPage(): React.ReactElement {
           { key: "drift" as TabType, label: "Drift analysis", badge: mockDriftAlerts.length > 0 ? mockDriftAlerts.length : undefined },
           { key: "audit" as TabType, label: "Audit log" },
         ]).filter(tab => tabKeys.includes(tab.key)).map(tab => (
-          <button key={tab.key} style={tabBtnStyle(tab.key)} className={visibleActiveTab !== tab.key ? "pp-pill-tab" : ""} onClick={() => setActiveTab(tab.key)}>
+          <button key={tab.key} style={tabBtnStyle(tab.key)} className={cx({ "pp-pill-tab": visibleActiveTab !== tab.key })} onClick={() => setActiveTab(tab.key)}>
             {tab.label}
             {tab.badge != null && (
               <span style={{
@@ -473,7 +466,7 @@ export function PinnedPlansPage(): React.ReactElement {
                 title: "Plan gist",
                 sort: (plan: PinnedPlan) => plan.gist,
                 cell: (plan: PinnedPlan) => (
-                  <Link to={`/statement/${encodeURIComponent(plan.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
+                  <Link to={`/statement/${encodeURIComponent(plan.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className={cx("pp-link")}>
                     {plan.gist.length > 24 ? plan.gist.slice(0, 24) + "..." : plan.gist}
                   </Link>
                 ),
@@ -483,7 +476,7 @@ export function PinnedPlansPage(): React.ReactElement {
                 title: "Statement",
                 sort: (plan: PinnedPlan) => plan.statementFingerprint,
                 cell: (plan: PinnedPlan) => (
-                  <Link to={`/statement/${encodeURIComponent(plan.fingerprintID)}?appNames=movr&from=pinned-plans`} className="pp-link-mono">
+                  <Link to={`/statement/${encodeURIComponent(plan.fingerprintID)}?appNames=movr&from=pinned-plans`} className={cx("pp-link-mono")}>
                     {plan.statementFingerprint}
                   </Link>
                 ),
@@ -605,7 +598,7 @@ export function PinnedPlansPage(): React.ReactElement {
               },
             ]}
           />
-          <div className="pp-pager">
+          <div className={cx("pp-pager")}>
             <Pagination
               pageSize={overviewPageSize}
               current={overviewPage}
@@ -741,7 +734,7 @@ export function PinnedPlansPage(): React.ReactElement {
                       ) : (
                         <PlanPinBadge />
                       )}
-                      <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
+                      <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className={cx("pp-link")}>
                         {drift.pinnedGist.length > 24 ? drift.pinnedGist.slice(0, 24) + "..." : drift.pinnedGist}
                       </Link>
                     </div>
@@ -787,13 +780,13 @@ export function PinnedPlansPage(): React.ReactElement {
                         pinnedCandidates.has(drift.candidateGist) && (
                           <PlanPinBadge />
                         )}
-                      <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
+                      <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className={cx("pp-link")}>
                         {drift.candidateGist.length > 24 ? drift.candidateGist.slice(0, 24) + "..." : drift.candidateGist}
                       </Link>
                     </div>
                   </td>
                   <td style={tdStyle}>
-                    <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?appNames=movr&from=pinned-plans`} className="pp-link-mono">
+                    <Link to={`/statement/${encodeURIComponent(drift.fingerprintID)}?appNames=movr&from=pinned-plans`} className={cx("pp-link-mono")}>
                       {drift.statement}
                     </Link>
                   </td>
@@ -865,12 +858,12 @@ export function PinnedPlansPage(): React.ReactElement {
                     </span>
                   </td>
                   <td style={tdStyle}>
-                    <Link to={`/statement/${encodeURIComponent(entry.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className="pp-link">
+                    <Link to={`/statement/${encodeURIComponent(entry.fingerprintID)}?tab=explain-plan&appNames=movr&from=pinned-plans`} className={cx("pp-link")}>
                       {entry.gist.length > 24 ? entry.gist.slice(0, 24) + "..." : entry.gist}
                     </Link>
                   </td>
                   <td style={tdStyle}>
-                    <Link to={`/statement/${encodeURIComponent(entry.fingerprintID)}?appNames=movr&from=pinned-plans`} className="pp-link-mono">
+                    <Link to={`/statement/${encodeURIComponent(entry.fingerprintID)}?appNames=movr&from=pinned-plans`} className={cx("pp-link-mono")}>
                       {entry.statement}
                     </Link>
                   </td>
