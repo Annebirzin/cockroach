@@ -379,6 +379,31 @@ List-load failure (2.10.3) only applies to surfaces that fetch the pinned-plans 
 
 ---
 
+## Open Questions
+
+Decisions left unresolved in v1, flagged here for review feedback before BE work begins.
+
+### OQ-1. Time picker on the Plan pinning tab
+
+The Statements, Transactions, and Sessions tabs in SQL Activity all carry a time picker that scopes the rows shown. The Plan pinning tab does **not** in v1.
+
+**Why it was left out:**
+- The list of pinned plans is persistent state. Pins exist independently of any time window, so a picker shouldn't filter the rows themselves.
+- A picker would only meaningfully scope the stat columns (Pin applied rate, Pin override rate, Avg latency, Last executed). That's a partial application of the picker compared to the other tabs, which feels inconsistent.
+- v1 ships lifetime-cumulative stats. Simpler to read, simpler to compute on the BE.
+
+**Why it might still be worth adding:**
+- Operators may want to ask "is this pin applying *right now*?" not "has it ever applied?" A pin that worked for 30 days but broke yesterday would still show a high lifetime Pin applied rate.
+- Consistency with the other SQL Activity tabs reduces UI surprise.
+- Drift detection (out of v1, but on the roadmap) almost certainly needs windowed stats.
+
+**Open for review:**
+- [ ] Should v1 add a time picker that scopes the stat columns (rows stay persistent)?
+- [ ] If yes, what's the default window (Past hour, like Statements)?
+- [ ] If no, is there a lighter-weight signal (e.g. "Last applied" timestamp, a 24h sparkline) that closes the recency gap without adding a picker?
+
+---
+
 ## 3. Visual Design Specifications
 
 ### Typography
