@@ -31,6 +31,41 @@ import { usePinDemoState } from "./usePinDemoState";
 
 const cx = classNames.bind(styles);
 
+// =============================================================================
+// Color tokens used in inline JSX styles.
+//
+// These mirror cluster-ui's design system (src/core/colors.module.scss). Class-
+// driven styles in pinnedPlansPage.module.scss already reference the tokens
+// directly via SCSS; this object is for the cell-level inline styles in the
+// SortedTable column descriptors and the prototype Drift / Audit tables.
+//
+// Keep these in sync if the design system palette changes. Several entries
+// (commented "off-palette") are state-specific colors not yet in the design
+// system — they're called out so a designer can either add them upstream or
+// substitute the closest token.
+// =============================================================================
+const tokens = {
+  // Direct palette matches:
+  white: "#ffffff",                   // $colors--neutral-0
+  neutral2: "#e7ecf3",                // $colors--neutral-2
+  neutral3: "#d6dbe7",                // $colors--neutral-3
+  neutral4: "#c0c6d9",                // $colors--neutral-4
+  neutral5: "#7e89a9",                // $colors--neutral-5
+  neutral6: "#475872",                // $colors--neutral-6
+  neutral7: "#394455",                // $colors--neutral-7
+  primaryBlue3: "#0055ff",            // $colors--primary-blue-3
+  primaryBlueAlert: "#e1ecff",        // $colors--primary-blue-alert
+  // Off-palette (callouts for the design system):
+  disabledBg: "#f6f7f9",              // disabled button bg — close to $colors--neutral-1 (#f5f7fa)
+  unpinnedBadgeBg: "#f0f2f5",         // unpinned badge bg — between neutral-1 and neutral-2
+  disabledBorder: "#e7eaf2",          // disabled button border — between neutral-2 and neutral-3
+  primaryBlueDark: "#0037a5",         // pinned pill text — darker than primary-blue-3
+  functionalRed: "#cd2939",           // broken pin foreground — close to functional-red-4 (#c32534)
+  functionalRedLight: "#ffe9eb",      // broken pin background
+  functionalGreen: "#237300",         // drift "potential improvement" foreground
+  functionalGreenLight: "#e3f5e0",    // drift "potential improvement" background
+} as const;
+
 // Font family matching the DB Console SortedTable
 const fontFamily = "SourceSansPro-Regular, Source Sans Pro, sans-serif";
 
@@ -43,16 +78,16 @@ const tableStyle: React.CSSProperties = {
   fontWeight: 400,
   lineHeight: "22px",
   fontSize: "14px",
-  color: "#394455",
+  color: tokens.neutral7,
 };
 
 const thStyle: React.CSSProperties = {
   padding: "11px 16px 11px 8px",
   textAlign: "left",
   fontSize: "14px",
-  color: "#475872",
-  backgroundColor: "#ffffff",
-  borderBottom: "1px solid #d6dbe7",
+  color: tokens.neutral6,
+  backgroundColor: tokens.white,
+  borderBottom: `1px solid ${tokens.neutral3}`,
   whiteSpace: "nowrap",
   fontFamily: "SourceSansPro-SemiBold, Source Sans Pro, sans-serif",
   fontWeight: "normal",
@@ -69,7 +104,7 @@ const tdStyle: React.CSSProperties = {
   fontSize: "14px",
   lineHeight: "22px",
   letterSpacing: "0.3px",
-  color: "#394455",
+  color: tokens.neutral7,
   verticalAlign: "middle",
 };
 
@@ -79,8 +114,8 @@ const tdFirstStyle: React.CSSProperties = { ...tdStyle, paddingLeft: "24px" };
 const rowStyle: React.CSSProperties = {
   height: "70px",
   borderTop: "1px solid transparent",
-  borderBottom: "1px solid #d6dbe7",
-  backgroundColor: "#ffffff",
+  borderBottom: `1px solid ${tokens.neutral3}`,
+  backgroundColor: tokens.white,
 };
 
 
@@ -113,8 +148,8 @@ function PlanPinBadge(): React.ReactElement {
         fontWeight: 600,
         height: "28px",
         whiteSpace: "nowrap",
-        backgroundColor: "#e1ecff",
-        color: "#0037a5",
+        backgroundColor: tokens.primaryBlueAlert,
+        color: tokens.primaryBlueDark,
       }}
     >
       Pinned
@@ -142,8 +177,8 @@ interface SortConfig {
 
 function SortArrows({ column, sortConfig }: { column: string; sortConfig: SortConfig | null }): React.ReactElement {
   const isActive = sortConfig?.column === column;
-  const upColor = isActive && sortConfig?.ascending ? "#0055ff" : "#c0c6d9";
-  const downColor = isActive && !sortConfig?.ascending ? "#0055ff" : "#c0c6d9";
+  const upColor = isActive && sortConfig?.ascending ? tokens.primaryBlue3 : tokens.neutral4;
+  const downColor = isActive && !sortConfig?.ascending ? tokens.primaryBlue3 : tokens.neutral4;
   return (
     <span style={{ display: "inline-flex", flexDirection: "column", marginLeft: "6px", verticalAlign: "middle", gap: "2px" }}>
       <span style={{ width: 0, height: 0, borderLeft: "3px solid transparent", borderRight: "3px solid transparent", borderBottom: `4px solid ${upColor}` }} />
@@ -181,7 +216,7 @@ function SortableHeader({
       style={{
         // Reserve the dashed underline only when there's a tooltip — otherwise
         // plain headers stay flush.
-        borderBottom: tooltip ? "1px dashed #475872" : undefined,
+        borderBottom: tooltip ? `1px dashed ${tokens.neutral6}` : undefined,
         // Match the dashed line's width to the text, not the cell.
         display: "inline",
       }}
@@ -323,8 +358,8 @@ export function PinnedPlansPage(): React.ReactElement {
     padding: "6px 16px",
     fontSize: "13px",
     fontWeight: visibleActiveTab === tab ? 600 : 400,
-    color: visibleActiveTab === tab ? "#0037a5" : "#475872",
-    backgroundColor: visibleActiveTab === tab ? "#e1ecff" : "transparent",
+    color: visibleActiveTab === tab ? tokens.primaryBlueDark : tokens.neutral6,
+    backgroundColor: visibleActiveTab === tab ? tokens.primaryBlueAlert : "transparent",
     border: visibleActiveTab === tab ? "none" : "1px solid transparent",
     borderRadius: "20px",
     cursor: "pointer",
@@ -359,8 +394,8 @@ export function PinnedPlansPage(): React.ReactElement {
                 borderRadius: "50%",
                 fontSize: "11px",
                 fontWeight: 600,
-                backgroundColor: "#0055ff",
-                color: "#ffffff",
+                backgroundColor: tokens.primaryBlue3,
+                color: tokens.white,
                 position: "relative",
                 top: "-1px",
               }}>
@@ -386,7 +421,7 @@ export function PinnedPlansPage(): React.ReactElement {
                     e.preventDefault();
                     window.location.reload();
                   }}
-                  style={{ color: "#0055ff" }}
+                  style={{ color: tokens.primaryBlue3 }}
                 >
                   Retry
                 </a>
@@ -397,7 +432,7 @@ export function PinnedPlansPage(): React.ReactElement {
       )}
       {visibleActiveTab === "overview" && !loadFailed && (
         <div style={{ overflowX: "auto" }}>
-          <div style={{ fontSize: "14px", color: "#475872", marginBottom: "12px", fontFamily }}>
+          <div style={{ fontSize: "14px", color: tokens.neutral6, marginBottom: "12px", fontFamily }}>
             <ResultsPerPageLabel
               pagination={{
                 pageSize: overviewPageSize,
@@ -433,10 +468,10 @@ export function PinnedPlansPage(): React.ReactElement {
                             alignItems: "center",
                             justifyContent: "center",
                             padding: "6px",
-                            border: `1px solid ${noPermission ? "#e7eaf2" : "#c0c6d9"}`,
+                            border: `1px solid ${noPermission ? tokens.disabledBorder : tokens.neutral4}`,
                             borderRadius: "4px",
-                            backgroundColor: noPermission ? "#f6f7f9" : "white",
-                            color: noPermission ? "#c0c6d9" : (isUnpinned ? "#394455" : "#0055ff"),
+                            backgroundColor: noPermission ? tokens.disabledBg : "white",
+                            color: noPermission ? tokens.neutral4 : (isUnpinned ? tokens.neutral7 : tokens.primaryBlue3),
                             cursor: noPermission ? "not-allowed" : "pointer",
                           }}
                         >
@@ -450,7 +485,7 @@ export function PinnedPlansPage(): React.ReactElement {
                         <span style={{
                           display: "inline-flex", alignItems: "center", padding: "0 8px",
                           borderRadius: "3px", fontSize: "12px", fontWeight: 600, height: "28px",
-                          whiteSpace: "nowrap", backgroundColor: "#f0f2f5", color: "#475872",
+                          whiteSpace: "nowrap", backgroundColor: tokens.unpinnedBadgeBg, color: tokens.neutral6,
                         }}>
                           Unpinned
                         </span>
@@ -502,7 +537,7 @@ export function PinnedPlansPage(): React.ReactElement {
                   const inner = (
                     <>
                       <span style={{ fontWeight: 600 }}>{plan.coverage}%</span>
-                      <span style={{ color: plan.coverage === 0 ? "#cd2939" : "#7e89a9" }}>
+                      <span style={{ color: plan.coverage === 0 ? tokens.functionalRed : tokens.neutral5 }}>
                         {" "}({abbrev(plan.executions)} of {abbrev(total)})
                       </span>
                     </>
@@ -519,9 +554,9 @@ export function PinnedPlansPage(): React.ReactElement {
                       >
                         <span style={{
                           display: "inline-block", padding: "2px 8px", borderRadius: "3px",
-                          backgroundColor: "#ffe9eb", color: "#cd2939", cursor: "help",
+                          backgroundColor: tokens.functionalRedLight, color: tokens.functionalRed, cursor: "help",
                         }}>
-                          <span style={{ borderBottom: "1px dashed #cd2939" }}>{inner}</span>
+                          <span style={{ borderBottom: `1px dashed ${tokens.functionalRed}` }}>{inner}</span>
                         </span>
                       </Tooltip>
                     );
@@ -549,13 +584,13 @@ export function PinnedPlansPage(): React.ReactElement {
                 sort: (plan: PinnedPlan) => (plan.executions > 0 ? plan.overridden / plan.executions : -1),
                 cell: (plan: PinnedPlan) => {
                   if (plan.executions === 0) {
-                    return <span style={{ color: "#c0c6d9" }}>—</span>;
+                    return <span style={{ color: tokens.neutral4 }}>—</span>;
                   }
                   const rate = Math.round((plan.overridden / plan.executions) * 100);
                   return (
-                    <span style={{ whiteSpace: "nowrap", color: "#394455" }}>
+                    <span style={{ whiteSpace: "nowrap", color: tokens.neutral7 }}>
                       <span style={{ fontWeight: 600 }}>{rate}%</span>
-                      <span style={{ color: "#7e89a9" }}>
+                      <span style={{ color: tokens.neutral5 }}>
                         {" "}({abbrev(plan.overridden)} of {abbrev(plan.executions)})
                       </span>
                     </span>
@@ -619,7 +654,7 @@ export function PinnedPlansPage(): React.ReactElement {
       {/* === Drift Analysis === (gated: out of scope for v1, see DRIFT_ENABLED) */}
       {DRIFT_ENABLED && activeTab === "drift" && (
         <div style={{ overflowX: "auto" }}>
-          <p style={{ fontSize: "14px", color: "#475872", margin: "0 0 12px 0", lineHeight: "22px", fontFamily }}>
+          <p style={{ fontSize: "14px", color: tokens.neutral6, margin: "0 0 12px 0", lineHeight: "22px", fontFamily }}>
             1-{mockDriftAlerts.length} of {mockDriftAlerts.length} drift alerts
           </p>
           <table style={tableStyle}>
@@ -672,8 +707,8 @@ export function PinnedPlansPage(): React.ReactElement {
                         height: "28px",
                         whiteSpace: "nowrap",
                         cursor: "default",
-                        backgroundColor: drift.assessment === "potential-improvement" ? "#e3f5e0" : "#ffe9eb",
-                        color: drift.assessment === "potential-improvement" ? "#237300" : "#cd2939",
+                        backgroundColor: drift.assessment === "potential-improvement" ? tokens.functionalGreenLight : tokens.functionalRedLight,
+                        color: drift.assessment === "potential-improvement" ? tokens.functionalGreen : tokens.functionalRed,
                       }}
                     >
                       {drift.assessment === "potential-improvement" ? "Potential improvement" : "Regression risk"}
@@ -699,12 +734,12 @@ export function PinnedPlansPage(): React.ReactElement {
                             alignItems: "center",
                             justifyContent: "center",
                             padding: "6px",
-                            border: `1px solid ${noPermission ? "#e7eaf2" : "#c0c6d9"}`,
+                            border: `1px solid ${noPermission ? tokens.disabledBorder : tokens.neutral4}`,
                             borderRadius: "4px",
-                            backgroundColor: noPermission ? "#f6f7f9" : "white",
+                            backgroundColor: noPermission ? tokens.disabledBg : "white",
                             color: noPermission
-                              ? "#c0c6d9"
-                              : (unpinnedDrift.has(drift.pinnedGist) ? "#394455" : "#0055ff"),
+                              ? tokens.neutral4
+                              : (unpinnedDrift.has(drift.pinnedGist) ? tokens.neutral7 : tokens.primaryBlue3),
                             cursor: noPermission ? "not-allowed" : "pointer",
                           }}
                         >
@@ -725,8 +760,8 @@ export function PinnedPlansPage(): React.ReactElement {
                             fontWeight: 600,
                             height: "28px",
                             whiteSpace: "nowrap",
-                            backgroundColor: "#f0f2f5",
-                            color: "#475872",
+                            backgroundColor: tokens.unpinnedBadgeBg,
+                            color: tokens.neutral6,
                           }}
                         >
                           Unpinned
@@ -759,12 +794,12 @@ export function PinnedPlansPage(): React.ReactElement {
                             alignItems: "center",
                             justifyContent: "center",
                             padding: "6px",
-                            border: `1px solid ${noPermission ? "#e7eaf2" : "#c0c6d9"}`,
+                            border: `1px solid ${noPermission ? tokens.disabledBorder : tokens.neutral4}`,
                             borderRadius: "4px",
-                            backgroundColor: noPermission ? "#f6f7f9" : "white",
+                            backgroundColor: noPermission ? tokens.disabledBg : "white",
                             color: noPermission
-                              ? "#c0c6d9"
-                              : (pinnedCandidates.has(drift.candidateGist) ? "#0055ff" : "#394455"),
+                              ? tokens.neutral4
+                              : (pinnedCandidates.has(drift.candidateGist) ? tokens.primaryBlue3 : tokens.neutral7),
                             cursor: noPermission ? "not-allowed" : "pointer",
                             flexShrink: 0,
                           }}
@@ -792,7 +827,7 @@ export function PinnedPlansPage(): React.ReactElement {
                   </td>
                   <td style={{ ...tdStyle, textAlign: "right" }}>{formatDuration(drift.pinnedLatency)}</td>
                   <td style={{ ...tdStyle, textAlign: "right" }}>{formatDuration(drift.candidateLatency)}</td>
-                  <td style={{ ...tdStyle, textAlign: "right", color: drift.latencyDelta < 0 ? "#237300" : "#cd2939", fontWeight: 600 }}>
+                  <td style={{ ...tdStyle, textAlign: "right", color: drift.latencyDelta < 0 ? tokens.functionalGreen : tokens.functionalRed, fontWeight: 600 }}>
                     {drift.latencyDelta < 0 ? "" : "+"}{formatDuration(Math.abs(drift.latencyDelta))}
                   </td>
                   <td style={{ ...tdStyle, textAlign: "right" }}>{drift.wouldHaveExecuted.toLocaleString()}</td>
@@ -803,7 +838,7 @@ export function PinnedPlansPage(): React.ReactElement {
                   <td style={{ ...tdStyle, textAlign: "center" }}>
                     {drift.assessment === "potential-improvement" && (
                     <button
-                      style={{ padding: "4px 8px", fontSize: "12px", fontWeight: 600, border: "1px solid #c0c6d9", borderRadius: "4px", backgroundColor: "white", color: "#394455", cursor: "pointer", fontFamily, whiteSpace: "nowrap", lineHeight: "20px" }}
+                      style={{ padding: "4px 8px", fontSize: "12px", fontWeight: 600, border: `1px solid ${tokens.neutral4}`, borderRadius: "4px", backgroundColor: tokens.white, color: tokens.neutral7, cursor: "pointer", fontFamily, whiteSpace: "nowrap", lineHeight: "20px" }}
                     >
                       Test plan
                     </button>
@@ -819,7 +854,7 @@ export function PinnedPlansPage(): React.ReactElement {
       {/* === Audit Log === */}
       {visibleActiveTab === "audit" && (
         <div style={{ overflowX: "auto" }}>
-          <p style={{ fontSize: "14px", color: "#475872", margin: "0 0 12px 0", lineHeight: "22px", fontFamily }}>
+          <p style={{ fontSize: "14px", color: tokens.neutral6, margin: "0 0 12px 0", lineHeight: "22px", fontFamily }}>
             1-{mockAuditLog.length} of {mockAuditLog.length} audit log entries
           </p>
           <table style={tableStyle}>
@@ -850,8 +885,8 @@ export function PinnedPlansPage(): React.ReactElement {
                         fontSize: "12px",
                         fontWeight: 600,
                         lineHeight: "20px",
-                        backgroundColor: entry.action === "Pinned" ? "#e1ecff" : "#f0f2f5",
-                        color: entry.action === "Pinned" ? "#0037a5" : "#475872",
+                        backgroundColor: entry.action === "Pinned" ? tokens.primaryBlueAlert : tokens.unpinnedBadgeBg,
+                        color: entry.action === "Pinned" ? tokens.primaryBlueDark : tokens.neutral6,
                       }}
                     >
                       {entry.action}
