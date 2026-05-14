@@ -15,6 +15,7 @@ import {
   SortedTable,
   SortSetting,
 } from "../sortedtable";
+import { PinPermissionGate } from "./pinPermissionGate";
 import {
   mockAuditLog,
   mockDriftAlerts,
@@ -22,13 +23,9 @@ import {
   mockTotalExecutions,
   PinnedPlan,
 } from "./pinnedPlans.fixture";
-import {
-  PinPermissionGate,
-  PinPlanModal,
-  runPinAction,
-  usePinDemoState,
-  usePinPlanModal,
-} from "./pinPlanModal";
+import { PinPlanModal, usePinPlanModal } from "./pinPlanModal";
+import { runPinAction } from "./runPinAction";
+import { usePinDemoState } from "./usePinDemoState";
 
 // Font family matching the DB Console SortedTable
 const fontFamily = "SourceSansPro-Regular, Source Sans Pro, sans-serif";

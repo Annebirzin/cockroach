@@ -11,7 +11,7 @@ import { ColumnDescriptor, SortedTable } from "src/sortedtable";
 
 import { Anchor } from "../../anchor";
 import { IndexStatsLink } from "../../components/links/indexStatsLink";
-import { PinPermissionGate } from "../../pinnedPlans/pinPlanModal";
+import { PinPermissionGate } from "../../pinnedPlans/pinPermissionGate";
 import { Timestamp, Timezone } from "../../timestamp";
 import {
   Duration,

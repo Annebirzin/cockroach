@@ -3,111 +3,12 @@
 // Use of this software is governed by the CockroachDB Software License
 // included in the /LICENSE file.
 
-import { InlineAlert, Tooltip } from "@cockroachlabs/ui-components";
-import { message } from "antd";
+import { InlineAlert } from "@cockroachlabs/ui-components";
 import React, { useCallback, useState } from "react";
-import { useLocation } from "react-router-dom";
 
 import { Modal } from "../modal";
 
-export type PinAction = "pin" | "unpin";
-
-// onConfirm may return a string to signal failure; the modal then shows an
-// inline error and stays open so the user can retry. Returning void/undefined
-// (the original signature) keeps existing call sites working unchanged — the
-// modal closes on success.
-export type PinConfirmCallback = () => string | void | Promise<string | void>;
-
-// =====================================================================
-// Shared error-state helpers
-// =====================================================================
-// All pin/unpin surfaces share the same four error patterns (toast,
-// modal-level retry, list-load failure, permission-denied). The helpers
-// below let every surface pick them up identically. The demo URL flag
-// is the prototype trigger; in production these are driven by API state.
-// =====================================================================
-
-export type PinDemoState =
-  | "ok"
-  | "fail-action"
-  | "fail-modal"
-  | "fail-load"
-  | "no-permission";
-
-// Reads ?demoState=… from the URL. Returns "ok" when absent or unknown.
-// Production code should replace this with state derived from API responses
-// and user privilege checks.
-export function usePinDemoState(): PinDemoState {
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const v = params.get("demoState");
-  if (
-    v === "fail-action" ||
-    v === "fail-modal" ||
-    v === "fail-load" ||
-    v === "no-permission"
-  ) {
-    return v;
-  }
-  return "ok";
-}
-
-// Wraps a base apply function with the standard toast + modal-error
-// behavior. Surfaces call this from inside their onConfirm callback so
-// every pin/unpin attempt produces consistent user-visible feedback.
-//
-// Returns a string when the operation fails in a way the user should see
-// inside the modal; the shared modal then keeps itself open and surfaces
-// the message via InlineAlert. Returns void on success / silent failure.
-export function runPinAction(
-  action: PinAction,
-  gist: string,
-  apply: () => void,
-  demoState: PinDemoState,
-): string | void {
-  if (demoState === "fail-modal") {
-    return action === "pin"
-      ? `Couldn't pin plan ${gist}. The plan is no longer valid (an index it references was dropped).`
-      : `Couldn't unpin plan ${gist}. The optimizer hint store is unreachable. Try again in a moment.`;
-  }
-  if (demoState === "fail-action") {
-    message.error(
-      action === "pin"
-        ? `Couldn't pin plan ${gist}. Try again or check permissions.`
-        : `Couldn't unpin plan ${gist}. Try again or check permissions.`,
-    );
-    return;
-  }
-  apply();
-  message.success(action === "pin" ? "Plan pinned." : "Plan unpinned.");
-}
-
-// Wraps a pin/unpin button so users without the MANAGEPLAN privilege see a
-// disabled control with an explanatory Tooltip instead of a clickable
-// button. Surfaces remain responsible for rendering the disabled visual
-// state on the button itself; this component only adds the tooltip wrapper.
-export function PinPermissionGate({
-  noPermission,
-  children,
-}: {
-  noPermission: boolean;
-  children: React.ReactElement;
-}): React.ReactElement {
-  if (!noPermission) return children;
-  return (
-    <Tooltip
-      placement="right"
-      content={
-        <span style={{ fontWeight: 400 }}>
-          You need the MANAGEPLAN system privilege to pin or unpin plans.
-          Contact your cluster admin.
-        </span>
-      }
-    >
-      {children}
-    </Tooltip>
-  );
-}
+import { PinAction, PinConfirmCallback } from "./pinTypes";
 
 interface PinPlanModalState {
   visible: boolean;

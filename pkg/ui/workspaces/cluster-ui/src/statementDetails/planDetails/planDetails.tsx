@@ -40,13 +40,10 @@ import {
   makeExplainPlanColumns,
   PlanHashStats,
 } from "./plansTable";
-import {
-  PinPermissionGate,
-  PinPlanModal,
-  runPinAction,
-  usePinDemoState,
-  usePinPlanModal,
-} from "../../pinnedPlans/pinPlanModal";
+import { PinPermissionGate } from "../../pinnedPlans/pinPermissionGate";
+import { PinPlanModal, usePinPlanModal } from "../../pinnedPlans/pinPlanModal";
+import { runPinAction } from "../../pinnedPlans/runPinAction";
+import { usePinDemoState } from "../../pinnedPlans/usePinDemoState";
 
 const cx = classNames.bind(styles);
 
