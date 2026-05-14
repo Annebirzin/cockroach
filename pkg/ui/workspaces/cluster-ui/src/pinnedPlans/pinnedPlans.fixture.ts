@@ -7,46 +7,13 @@
 //
 // In production these go away — the page reads pinned plan data from
 // /api/v2/pinned_plans and audit log entries from a similar endpoint.
-// The shapes here document the contract the BE engineer needs to honor.
-//
-// PinnedPlan is also exported for use in the page's column descriptors
-// so the table is type-checked end-to-end.
+// Type definitions live in pinnedPlans.types.ts (the BE↔FE contract).
 
-/** Drift Analysis row — out of scope for V1, gated by DRIFT_ENABLED. */
-export interface DriftAlert {
-  fingerprintID: string;
-  statement: string;
-  /** plan_gist of the currently-pinned plan. */
-  pinnedGist: string;
-  /** plan_gist of the plan the optimizer would have chosen instead. */
-  candidateGist: string;
-  /** Number of executions where the pin overrode the candidate. */
-  wouldHaveExecuted: number;
-  /** Most recent execution where the pin overrode the candidate. */
-  lastWouldHaveExecuted: Date;
-  /** Whether the candidate would have been faster (improvement) or slower (risk). */
-  assessment: "potential-improvement" | "regression-risk";
-  /** candidateLatency - pinnedLatency, in seconds (negative = candidate is faster). */
-  latencyDelta: number;
-  /** Avg per-execution latency of the pinned plan, in seconds. */
-  pinnedLatency: number;
-  /** Avg per-execution latency of the candidate plan, in seconds. */
-  candidateLatency: number;
-}
+import { AuditLogEntry, DriftAlert, PinnedPlan } from "./pinnedPlans.types";
 
-/** Audit log entry — every pin/unpin action is recorded for compliance. */
-export interface AuditLogEntry {
-  action: "Pinned" | "Unpinned";
-  /** plan_gist that was pinned or unpinned. */
-  gist: string;
-  fingerprintID: string;
-  /** Username of the actor who performed the action. */
-  user: string;
-  /** When the action occurred. */
-  timestamp: Date;
-  /** Statement fingerprint (parameterized SQL string). */
-  statement: string;
-}
+// Re-export for convenience so existing imports `from "./pinnedPlans.fixture"`
+// don't break. New code should import types from `./pinnedPlans.types` directly.
+export { AuditLogEntry, DriftAlert, PinnedPlan };
 
 // Total executions per statement fingerprint. Used to render the
 // "Pin applied" cell as `% (X of Y)` where Y is the fingerprint total.
@@ -91,35 +58,6 @@ export const mockTotalExecutions: Record<string, number> = {
 // `coverage` = % of fingerprint executions that used this pinned plan.
 //   100 = pin always wins. 0 = pin never used (e.g. plan no longer applicable).
 //   Anything in between = pin only sticks for some executions.
-// Shape of a single pinned plan row. Mirrors what the backend will eventually
-// return from /api/v2/pinned_plans. Documenting the type explicitly here so
-// the column descriptors below get type-checked and the BE engineer has a
-// concrete contract to implement against.
-export interface PinnedPlan {
-  /** Statement fingerprint (parameterized SQL string). */
-  statementFingerprint: string;
-  /** Stable hash for this fingerprint; links to the statement detail page. */
-  fingerprintID: string;
-  /** Database the plan was created in. */
-  database: string;
-  /** plan_gist — opaque hash identifying this specific execution plan. */
-  gist: string;
-  /** Username of the actor who pinned the plan. */
-  pinnedBy: string;
-  /** When the pin was created. */
-  pinnedAt: Date;
-  /** Total executions of THIS pinned plan in the time window. */
-  executions: number;
-  /** Subset of executions where the pin overrode the optimizer's choice. */
-  overridden: number;
-  /** Pin applied rate, 0–100. % of fingerprint executions that used this plan. */
-  coverage: number;
-  /** Average per-execution latency in seconds. */
-  avgLatency: number;
-  /** Most recent execution of this pinned plan. */
-  lastExecTime: Date;
-}
-
 export const mockPinnedPlans: PinnedPlan[] = [
   // INSERT INTO rides — 2 pinned plans, both well-utilized
   {
