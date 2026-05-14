@@ -4,11 +4,16 @@
 // included in the /LICENSE file.
 
 import { InlineAlert } from "@cockroachlabs/ui-components";
+import classNames from "classnames/bind";
 import React, { useCallback, useState } from "react";
 
 import { Modal } from "../modal";
 
+import styles from "./pinPlanModal.module.scss";
+import { tokens } from "./pinnedPlans.tokens";
 import { PinAction, PinConfirmCallback } from "./pinTypes";
+
+const cx = classNames.bind(styles);
 
 interface PinPlanModalState {
   visible: boolean;
@@ -82,25 +87,18 @@ export function PinPlanModal({
 }: PinPlanModalProps): React.ReactElement {
   const hasError = !!state.error;
   return (
-    <>
-      <style>{`
-        .pp-pin-modal .crdb-ant-modal-close { top: 16px; right: 16px; }
-        .pp-pin-modal .crdb-ant-modal-close-x { width: 40px; height: 40px; line-height: 40px; }
-        .pp-pin-modal .crdb-ant-modal-header { display: flex; align-items: center; }
-        .pp-pin-modal .crdb-ant-modal-header h3 { font-weight: 600; }
-      `}</style>
-      <Modal
-        visible={state.visible}
-        onOk={onConfirm}
-        onCancel={onCancel}
-        okText={hasError
-          ? (state.action === "pin" ? "Try pinning again" : "Try unpinning again")
-          : (state.action === "pin" ? "Pin plan" : "Unpin plan")}
-        cancelText="Cancel"
-        title={state.action === "pin" ? "Pin this plan" : "Unpin this plan"}
-        className="pp-pin-modal"
-      >
-        <p style={{ margin: 0, fontSize: "14px", lineHeight: "22px", color: "#394455" }}>
+    <Modal
+      visible={state.visible}
+      onOk={onConfirm}
+      onCancel={onCancel}
+      okText={hasError
+        ? (state.action === "pin" ? "Try pinning again" : "Try unpinning again")
+        : (state.action === "pin" ? "Pin plan" : "Unpin plan")}
+      cancelText="Cancel"
+      title={state.action === "pin" ? "Pin this plan" : "Unpin this plan"}
+      className={cx("pp-pin-modal")}
+    >
+        <p style={{ margin: 0, fontSize: "14px", lineHeight: "22px", color: tokens.neutral7 }}>
           {state.action === "pin"
             ? "Pinning a plan forces the optimizer to use this specific execution plan for the statement. Other potentially better plans will be ignored until this pin is removed."
             : "Unpinning this plan allows the optimizer to choose the best execution plan automatically. If the optimizer selects a worse plan, you may see a performance regression."}
@@ -110,7 +108,6 @@ export function PinPlanModal({
             <InlineAlert intent="danger" title={state.error} />
           </div>
         )}
-      </Modal>
-    </>
+    </Modal>
   );
 }

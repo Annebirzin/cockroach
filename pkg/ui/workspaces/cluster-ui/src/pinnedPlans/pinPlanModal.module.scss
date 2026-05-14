@@ -1,0 +1,28 @@
+// Copyright 2026 The Cockroach Authors.
+//
+// Use of this software is governed by the CockroachDB Software License
+// included in the /LICENSE file.
+
+// Modal-chrome overrides for PinPlanModal. Reaches into antd's rendered DOM
+// via :global() because the close button and header are rendered by the antd
+// Modal wrapper, not by our React tree.
+
+.pp-pin-modal {
+  :global(.crdb-ant-modal-close) {
+    top: 16px;
+    right: 16px;
+  }
+  :global(.crdb-ant-modal-close-x) {
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+  }
+  :global(.crdb-ant-modal-header) {
+    display: flex;
+    align-items: center;
+
+    h3 {
+      font-weight: 600;
+    }
+  }
+}
